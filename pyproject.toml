@@ -1,0 +1,45 @@
+[build-system]
+requires = ["setuptools>=61.0"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "mrbtp-demo"
+version = "0.1.0"
+description = "A minimal, self-contained demo of Multi-Robot Behavior-Tree Planning (MRBTP) on MiniGrid."
+readme = "README.md"
+requires-python = ">=3.9"
+license = { text = "MIT" }
+authors = [{ name = "yishuaicai" }]
+keywords = ["behavior-tree", "multi-robot", "planning", "minigrid", "MRBTP"]
+
+# Runtime deps are kept in lock-step with requirements.txt.
+dependencies = [
+    "gymnasium~=0.29.1",
+    "minigrid~=2.3.1",
+    "py_trees~=2.2.3",
+    "numpy>=1.19.3",
+    "antlr4-python3-runtime",
+    "pygame>=2.1",
+    "pydot~=1.4",
+    "Pillow>=9.0",
+    "shortuuid~=1.0.11",
+    "pandas~=2.2.2",
+]
+
+[project.scripts]
+# After `pip install`, these console commands are available directly:
+mrbtp-demo = "mrbtp_demo.run:main"
+mrbtp-verify = "mrbtp_demo.verify:main"
+
+# Two top-level packages ship together: the demo orchestration layer
+# (`mrbtp_demo`) and the trimmed planning library it builds on (`mrbtp`).
+# Use auto-discovery (NOT an explicit list) so every sub-package
+# (mrbtp.btp, mrbtp.envs, mrbtp.behavior_tree, ...) is included in the wheel.
+[tool.setuptools.packages.find]
+where = ["."]
+include = ["mrbtp_demo*", "mrbtp*"]
+
+[tool.setuptools.package-data]
+# Ship the non-Python assets the runtime needs (grid tile icons, the BTML
+# grammar tokens, etc.) so an installed wheel still works.
+"*" = ["*.png", "*.tokens", "*.interp", "*.json"]

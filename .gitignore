@@ -1,0 +1,23 @@
+# --- Python ---
+__pycache__/
+*.py[cod]
+*.egg-info/
+*.egg
+build/
+dist/
+.eggs/
+
+# --- virtual envs ---
+.venv/
+venv/
+env/
+
+# --- demo run artifacts ---
+mrbtp_demo/output/
+output/
+*.svg.tmp
+
+# --- editor / OS ---
+.vscode/
+.idea/
+.DS_Store
