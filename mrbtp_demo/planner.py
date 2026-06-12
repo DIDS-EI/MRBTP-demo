@@ -22,11 +22,11 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import List, Optional
 
-from mrbtp.behavior_tree.behavior_tree import BehaviorTree
-from mrbtp.btp.multi_robot_basic import MABTP
-from mrbtp.btp.multi_robot_optimal import MAOBTP
-from mrbtp.utils.composite_action_tools import CompositeActionPlanner
-from mrbtp.utils.tools import print_colored
+from core.behavior_tree.behavior_tree import BehaviorTree
+from core.btp.multi_robot_basic import MABTP
+from core.btp.multi_robot_optimal import MAOBTP
+from core.utils.composite_action_tools import CompositeActionPlanner
+from core.utils.tools import print_colored
 
 from mrbtp_demo.scenario import Scenario
 

@@ -37,7 +37,7 @@ import os
 import random
 from pathlib import Path
 
-from mrbtp.utils.tools import print_colored
+from core.utils.tools import print_colored
 
 from mrbtp_demo.scenario import SCENARIOS
 from mrbtp_demo.planner import plan_behavior_trees

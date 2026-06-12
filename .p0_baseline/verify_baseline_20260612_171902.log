@@ -1,0 +1,21 @@
+--- [share] attempt 1/6 (seed=6) ---
+=== [share] build env + plan (seed=6) ===
+[plan] trees=2 time=0.01s expanded=246
+    ...step 0 done
+    ...step 10 done
+    ...step 20 done
+    ...step 30 done
+RESULT [share] success=True steps=33
+[share] PASSED on attempt 1/6
+--- [no-share] attempt 1/6 (seed=6) ---
+=== [no-share] build env + plan (seed=6) ===
+[plan] trees=2 time=0.01s expanded=252
+    ...step 0 done
+    ...step 10 done
+    ...step 20 done
+RESULT [no-share] success=True steps=22
+[no-share] PASSED on attempt 1/6
+
+SUMMARY shared_success=True isolated_success=True
+pygame 2.6.1 (SDL 2.28.4, Python 3.11.9)
+Hello from the pygame community. https://www.pygame.org/contribute.html

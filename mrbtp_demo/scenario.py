@@ -21,7 +21,7 @@ from typing import Dict, List, Tuple
 import gymnasium as gym
 from minigrid.core.world_object import Ball
 
-from mrbtp import MiniGridToMAGridEnv
+from core import MiniGridToMAGridEnv
 
 
 # A composite-action library is, per agent, a dict mapping a macro name to
