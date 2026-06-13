@@ -22,6 +22,18 @@ from core.envs.gridenv.minigrid.objects import CAN_GOTO,CAN_PICKUP,CAN_TOGGLE
 
 # Quick start. Run this in console: python -m minigrid.manual_control --env BabyAI-BossLevelNoUnlock-v0
 
+def default_behavior_lib_path() -> str:
+    """Absolute path of the built-in MiniGrid behavior library.
+
+    This is the historical, hard-coded location.  It is now exposed as a
+    helper so (a) the env can fall back to it when no scene-specific library
+    is injected, and (b) scene libraries can ``import`` these primitives and
+    only add a few domain-specific nodes on top.
+    """
+    from core.utils import get_root_path
+    return f"{get_root_path()}/envs/gridenv/minigrid/behavior_lib"
+
+
 def gen_mission_func(env):
     def _gen_mission():
         return env.mission
@@ -33,8 +45,17 @@ class MiniGridToMAGridEnv(MiniGridMAGridEnv):
         self,
         minigrid_env: MiniGridEnv,
         num_agent: int = 1,
+        behavior_lib_path: str | None = None,
         **kwargs
     ):
+        # Which behavior library (Condition/Action node folder) this env's
+        # agents plan with.  ``None`` falls back to the built-in MiniGrid
+        # library, so the historical behaviour is preserved byte-for-byte.
+        # A scenario can inject a *scene-specific* library (e.g. the home /
+        # battle domains under ``core/envs/domains/``) by passing an absolute
+        # path here; see ``Scenario.behavior_lib_path`` and ``build_env``.
+        self.behavior_lib_path = behavior_lib_path or default_behavior_lib_path()
+
         self.width = minigrid_env.width
         self.height = minigrid_env.height
 
@@ -52,7 +73,16 @@ class MiniGridToMAGridEnv(MiniGridMAGridEnv):
 
         super().__init__(mission_space=mission_space,
                          num_agent = num_agent,
-                         grid_size = minigrid_env.width,
+                         # Pass width/height separately instead of a single
+                         # ``grid_size`` so NON-SQUARE layouts (e.g. the
+                         # self-built scene maps in scenes/) keep their
+                         # real height.  Using ``grid_size=width`` forced the
+                         # env to a WxW square, leaving self.height wrong (15
+                         # instead of 7) while self.grid was the true 15x7 ->
+                         # the pygame renderer then ran j past the grid and
+                         # hit ``assert 0 <= j < self.height``.
+                         width = minigrid_env.width,
+                         height = minigrid_env.height,
 
                          tile_size=minigrid_env.tile_size,
                          render_mode=None,
@@ -81,6 +111,18 @@ class MiniGridToMAGridEnv(MiniGridMAGridEnv):
         # self.get_objects_lists()
         # self.adj_rooms_doors = self.get_adjacent_rooms_and_doors()
 
+        # ---- Domain fluent store (additive; grid primitives never touch it) --
+        # A set of *symbolic* predicate strings that are NOT derivable from the
+        # grid geometry — e.g. ``IsClean(ball-0)`` or ``IsSecured(room-1)``.
+        # Domain Condition nodes (under ``core/envs/domains/<d>/behavior_lib``)
+        # read this set; domain Action nodes flip a fluent on/off once the agent
+        # has physically reached the relevant cell on the grid.  This is the
+        # seam that lets the SAME plan run abstractly on the grid today and on a
+        # robot simulator later (the simulator backend just maintains the same
+        # fluent contract from real sensor/actuator state).  ``None`` until the
+        # first reset so a fresh world always starts from a clean slate.
+        self.domain_state: set | None = None
+
         self.verbose=False
 
     def reset(
@@ -93,6 +135,11 @@ class MiniGridToMAGridEnv(MiniGridMAGridEnv):
 
         self.get_objects_lists()
         # self.adj_rooms_doors = self.get_adjacent_rooms_and_doors()
+
+        # Each episode starts from a clean fluent slate; the scenario seeds the
+        # domain-specific initial fluents (e.g. which balls start dirty) right
+        # after the final reset in ``Scenario.build_env`` via ``seed_domain_state``.
+        self.domain_state = set()
 
 
     def assign_cells_to_rooms(self):
@@ -165,6 +212,33 @@ class MiniGridToMAGridEnv(MiniGridMAGridEnv):
         if pos in self.cells_room:
             return self.cells_room[pos]
         return -1
+
+    # ------------------------------------------------------------------ #
+    # Domain fluent helpers (additive; used only by domain behavior libs)  #
+    # ------------------------------------------------------------------ #
+    def has_fluent(self, predicate: str) -> bool:
+        """Return whether a symbolic domain fluent currently holds.
+
+        Domain Condition nodes call this to evaluate predicates that are not
+        derivable from grid geometry (``IsClean``, ``IsSecured`` ...).  Returns
+        ``False`` before the first reset so evaluation is always safe.
+        """
+        return bool(self.domain_state) and predicate in self.domain_state
+
+    def set_fluent(self, predicate: str, value: bool = True) -> None:
+        """Add (``value=True``) or remove (``value=False``) a domain fluent.
+
+        Domain Action nodes call this once the agent has physically reached the
+        target cell on the grid, so the symbolic world state stays in lock-step
+        with the geometric one.  A simulator backend would maintain the same
+        fluent contract from real sensor / actuator readings.
+        """
+        if self.domain_state is None:
+            self.domain_state = set()
+        if value:
+            self.domain_state.add(predicate)
+        else:
+            self.domain_state.discard(predicate)
 
     def place_object_in_room(self, obj, room_index):
         """
@@ -339,12 +413,9 @@ class MiniGridToMAGridEnv(MiniGridMAGridEnv):
             return {f"IsHolding(agent-0,{obj_id})"}
 
     def create_behavior_libs(self):
-        from core.utils import get_root_path
-        root_path = get_root_path()
-
-
-        behavior_lib_path = f"{root_path}/envs/gridenv/minigrid/behavior_lib"
-        behavior_lib = BehaviorLibrary(behavior_lib_path)
+        # Load the behavior library this env was configured with (scene-specific
+        # if a scenario injected one, otherwise the built-in MiniGrid library).
+        behavior_lib = BehaviorLibrary(self.behavior_lib_path)
         for agent in self.agents:
             agent.behavior_lib = behavior_lib
 
@@ -413,12 +484,11 @@ class MiniGridToMAGridEnv(MiniGridMAGridEnv):
         from core.behavior_tree import BTML
         from core.behavior_tree.behavior_tree import BehaviorTree
         from core.behavior_tree import Status
-        from core.utils import get_root_path
         from core.utils import parse_predicate_logic
 
-        root_path = get_root_path()
-        behavior_lib_path = f"{root_path}/envs/gridenv/minigrid/behavior_lib"
-        behavior_lib = BehaviorLibrary(behavior_lib_path)
+        # Use the SAME behavior library the agents plan with, so the condition
+        # classes that evaluate the initial state match the action model.
+        behavior_lib = BehaviorLibrary(self.behavior_lib_path)
         start = copy.deepcopy(states_ls)
         for state in states_ls:
 

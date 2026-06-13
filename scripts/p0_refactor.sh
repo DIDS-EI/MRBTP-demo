@@ -95,7 +95,7 @@ if [ ! -d .git ]; then
   run "git init -q"
   # 最小 .gitignore，避免把 venv/缓存/备份纳入版本管理
   if [ ! -f .gitignore ]; then
-    run "printf '%s\n' '.venv/' '__pycache__/' '*.egg-info/' '$BACKUP_DIR/' '$BASELINE_DIR/' 'mrbtp_demo/output/' > .gitignore"
+    run "printf '%s\n' '.venv/' '__pycache__/' '*.egg-info/' '$BACKUP_DIR/' '$BASELINE_DIR/' 'app/output/' > .gitignore"
     ok "已生成 .gitignore"
   fi
   run "git add -A"
@@ -124,11 +124,11 @@ run "mkdir -p '$BASELINE_DIR'"
 BASE_LOG="$BASELINE_DIR/verify_baseline_$TS.log"
 c "0;37" "  跑 verify.py（自带多次重试，对付 planner 固有 flaky）..."
 if [ "$DRY_RUN" = 1 ]; then
-  c "0;90" "  [dry-run] PYTHONPATH=. $PY -m mrbtp_demo.verify --both --attempts 6 2>&1 | tee $BASE_LOG"
+  c "0;90" "  [dry-run] PYTHONPATH=. $PY -m app.verify --both --attempts 6 2>&1 | tee $BASE_LOG"
   BASELINE_OK=1
 else
   set +e
-  PYTHONPATH=. "$PY" -m mrbtp_demo.verify --both --attempts 6 2>&1 | tee "$BASE_LOG"
+  PYTHONPATH=. "$PY" -m app.verify --both --attempts 6 2>&1 | tee "$BASE_LOG"
   BASELINE_RC=${PIPESTATUS[0]}
   set -e
   if [ "$BASELINE_RC" = 0 ]; then
@@ -340,10 +340,10 @@ fi
 step "段3 · 改名归位 mrbtp/ → core/（高风险，git 兜底）"
 warn "将物理改名 mrbtp/ → core/ 并批量修改 237 处 import。回归失败自动回滚。"
 
-# 关键安全点：'mrbtp' 是 'mrbtp_demo' 的前缀。用 perl 词边界 \bmrbtp\b 匹配，
-# 'mrbtp_demo' 中 mrbtp 右侧是下划线(单词字符)，不构成词边界，天然不被误伤。
+# 关键安全点：'mrbtp' 是 'app' 的前缀。用 perl 词边界 \bmrbtp\b 匹配，
+# 'app' 中 mrbtp 右侧是下划线(单词字符)，不构成词边界，天然不被误伤。
 RENAME_FILES() {
-  # 在所有 .py 中把独立单词 mrbtp 替换为 core（不碰 mrbtp_demo）
+  # 在所有 .py 中把独立单词 mrbtp 替换为 core（不碰 app）
   # 同时修正硬编码路径字符串 'mrbtp/behavior_tree/...' / "mrbtp.behavior_tree"
   find . -type f -name '*.py' \
     -not -path './.venv/*' -not -path './.git/*' \
@@ -373,18 +373,18 @@ ok "git mv mrbtp → core"
 
 # 2) 批量改 import / 包名 / 硬编码路径字符串
 RENAME_FILES
-ok "批量替换 \\bmrbtp\\b → core（词边界保护 mrbtp_demo 不受影响）"
+ok "批量替换 \\bmrbtp\\b → core（词边界保护 app 不受影响）"
 
 # 3) 重装可编辑包（包名变了，刷新 egg-info / 入口点）
-rm -rf mrbtp_demo.egg-info core.egg-info 2>/dev/null || true
+rm -rf app.egg-info core.egg-info 2>/dev/null || true
 "$PY" -m pip install -e . -q
 ok "重装可编辑包（pip install -e .）"
 
 # 4) 静态自检：确保没有残留的独立 mrbtp 引用
 RESIDUAL="$(grep -rnE '\bmrbtp\b' --include='*.py' . \
-  | grep -v '__pycache__' | grep -v '\.venv/' | grep -v 'mrbtp_demo' || true)"
+  | grep -v '__pycache__' | grep -v '\.venv/' | grep -v 'app' || true)"
 if [ -n "$RESIDUAL" ]; then
-  warn "发现残留的独立 'mrbtp' 引用（非 mrbtp_demo）："
+  warn "发现残留的独立 'mrbtp' 引用（非 app）："
   echo "$RESIDUAL" | sed 's/^/    /' | head -30
   warn "这些可能是注释或文档串；若是 import 会导致下一步回归失败并自动回滚。"
 fi
@@ -392,7 +392,7 @@ fi
 # 5) 回归校验 —— 与段1 基准对照（成功即 exit 0）
 step "段3 回归校验（必须与基准同样跑通）"
 set +e
-PYTHONPATH=. "$PY" -m mrbtp_demo.verify --both --attempts 6 2>&1 \
+PYTHONPATH=. "$PY" -m app.verify --both --attempts 6 2>&1 \
   | tee "$BASELINE_DIR/verify_after_rename_$TS.log"
 AFTER_RC=${PIPESTATUS[0]}
 set -e

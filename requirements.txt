@@ -1,7 +1,7 @@
 # Minimal runtime dependencies for the mrbtp-demo standalone package.
 #
 # This list was derived empirically: every third-party top-level package that
-# the trimmed `mrbtp` subset + `mrbtp_demo` actually import.  The heavyweight
+# the trimmed `mrbtp` subset + `app` actually import.  The heavyweight
 # extras from the original mrbtp repo (openai, hydra-core, sympy, matplotlib,
 # opencv, networkx, tabulate, latextable, ipdb, tqdm, requests, tdw, ...) are
 # NOT needed for this demo and have been removed.

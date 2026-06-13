@@ -28,16 +28,16 @@ dependencies = [
 
 [project.scripts]
 # After `pip install`, these console commands are available directly:
-core-demo = "mrbtp_demo.run:main"
-core-verify = "mrbtp_demo.verify:main"
+core-demo = "app.run:main"
+core-verify = "app.verify:main"
 
 # Two top-level packages ship together: the demo orchestration layer
-# (`mrbtp_demo`) and the trimmed planning library it builds on (`core`).
+# (`app`) and the trimmed planning library it builds on (`core`).
 # Use auto-discovery (NOT an explicit list) so every sub-package
 # (core.btp, core.envs, core.behavior_tree, ...) is included in the wheel.
 [tool.setuptools.packages.find]
 where = ["."]
-include = ["mrbtp_demo*", "core*"]
+include = ["app*", "core*"]
 
 [tool.setuptools.package-data]
 # Ship the non-Python assets the runtime needs (grid tile icons, the BTML

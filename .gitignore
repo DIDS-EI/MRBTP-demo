@@ -17,6 +17,19 @@ mrbtp_demo/output/
 output/
 *.svg.tmp
 
+# --- refactor backups (kept locally, never committed) ---
+.p0_backups/
+.p0_baseline/
+.cleanup_bak.*/
+
+# --- scratch / probe scripts ---
+_probe_*.py
+_poc_*.py
+_t_exec_*.py
+
+# --- private docs (never committed) ---
+docs/cys/
+
 # --- editor / OS ---
 .vscode/
 .idea/

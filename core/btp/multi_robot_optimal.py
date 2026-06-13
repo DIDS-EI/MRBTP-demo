@@ -102,8 +102,32 @@ BfsPlanningAgent = CostAwarePlanningAgent
 class MAOBTP(MABTP):
     """Cost-aware multi-robot behavior-tree planner with composite actions."""
 
-    def bfs_planning(self, goal, action_lists) -> None:
-        """Best-first multi-robot back-chaining search ordered by accumulated cost."""
+    def bfs_planning(self, goal, action_lists, single_expand: bool = False) -> None:
+        """Best-first multi-robot back-chaining search ordered by accumulated cost.
+
+        Args:
+            goal: the shared symbolic goal condition.
+            action_lists: per-agent grounded action models.
+            single_expand: expansion policy for each popped condition.
+
+                * ``False`` (default, classic MAOBTP) — **every** agent expands
+                  **every** popped condition.  Each agent grows its own tree and
+                  whichever one can cover a sub-goal does; coordination is then
+                  resolved at run time.  Maximally flexible but the branching
+                  factor scales with the team size, so it explodes on
+                  many-room / many-agent problems.
+
+                * ``True`` (division-of-labour) — each popped condition is
+                  expanded by **exactly one** agent.  We round-robin the
+                  *starting* agent across successive pops (so different
+                  sub-goals naturally fall to different robots instead of
+                  agent-0 hogging the whole goal), and if the chosen agent
+                  cannot act on the condition we hand it to the next agent that
+                  can.  This prunes the redundant per-agent re-expansion, giving
+                  a much smaller search and an explicit task split — at the cost
+                  of the extra "let another robot take this sub-goal" plans the
+                  classic mode keeps.
+        """
         start_time = time.time()
 
         planning_agent_list = [
@@ -112,9 +136,14 @@ class MAOBTP(MABTP):
             )
             for i, action_list in enumerate(action_lists)
         ]
+        num_agent = len(planning_agent_list)
 
         frontier: List[CondCostPair] = []
         heapq.heappush(frontier, CondCostPair(goal, 0))
+
+        # Round-robin cursor: the agent index we *prefer* to start with on the
+        # next popped condition (only consulted in single_expand mode).
+        rr_cursor = 0
 
         while frontier:
             self.record_expanded_num += 1
@@ -124,12 +153,37 @@ class MAOBTP(MABTP):
 
             if self.verbose:
                 print_colored(f"C:{condition}", "green")
-            for agent in planning_agent_list:
-                if self.verbose:
-                    print_colored(f"Agent:{agent.id}", "purple")
-                premise_condition_cost_list = agent.one_step_expand(condition_cost)
-                for cond_cost in premise_condition_cost_list:
-                    heapq.heappush(frontier, cond_cost)
+
+            if not single_expand:
+                # ---- classic mode: every agent expands this condition ------
+                for agent in planning_agent_list:
+                    if self.verbose:
+                        print_colored(f"Agent:{agent.id}", "purple")
+                    premise_condition_cost_list = agent.one_step_expand(condition_cost)
+                    for cond_cost in premise_condition_cost_list:
+                        heapq.heappush(frontier, cond_cost)
+            else:
+                # ---- division-of-labour: exactly one agent expands ---------
+                # Try agents starting at the round-robin cursor; the first one
+                # that actually produces a premise "claims" this condition.
+                # If nobody can act on it, we simply drop it (a dead branch in
+                # this agent assignment) — other branches still reach the goal.
+                claimed = False
+                for offset in range(num_agent):
+                    agent = planning_agent_list[(rr_cursor + offset) % num_agent]
+                    if self.verbose:
+                        print_colored(f"Agent:{agent.id} (single)", "purple")
+                    premise_condition_cost_list = agent.one_step_expand(condition_cost)
+                    if premise_condition_cost_list:
+                        for cond_cost in premise_condition_cost_list:
+                            heapq.heappush(frontier, cond_cost)
+                        # Advance the cursor past the claimer so the next
+                        # condition prefers a different robot.
+                        rr_cursor = (agent.id + 1) % num_agent
+                        claimed = True
+                        break
+                if self.verbose and not claimed:
+                    print_colored(f"  (no agent could expand {condition})", "orange")
 
             if self.start is not None and self.start >= condition:
                 break

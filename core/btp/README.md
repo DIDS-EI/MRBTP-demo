@@ -1,4 +1,4 @@
-# `mrbtp/btp/` — Behavior-Tree Planning
+# `core/btp/` — Behavior-Tree Planning
 
 Multi-robot behavior-tree planners used in the paper
 
@@ -18,13 +18,13 @@ Multi-robot behavior-tree planners used in the paper
 
 > The class used to be called `DMR` (*Decentralized Multi-Robot*).
 > `DMR` is now a **class-level alias of `MRBTP`** (`DMR is MRBTP` →
-> `True`), re-exported from `mrbtp.btp`, so historical
-> `from mrbtp.btp import DMR` keeps working.
+> `True`), re-exported from `core.btp`, so historical
+> `from core.btp import DMR` keeps working.
 
 ## Layout
 
 ```
-mrbtp/btp/
+core/btp/
 ├── __init__.py                Public API (re-exports every class below)
 ├── README.md                  You are here.
 │
@@ -63,17 +63,17 @@ code that runs.
 
 ```python
 # paper-aligned (recommended)
-from mrbtp.btp import MRBTP, MABTP, MAOBTP, CABTP
-from mrbtp.btp import PlanningAgent, PlanningCondition
+from core.btp import MRBTP, MABTP, MAOBTP, CABTP
+from core.btp import PlanningAgent, PlanningCondition
 
 # fully-qualified canonical paths
-from mrbtp.btp.multi_robot          import MRBTP
-from mrbtp.btp.multi_robot_basic    import MABTP
-from mrbtp.btp.multi_robot_optimal  import MAOBTP
-from mrbtp.btp.composite_action     import CABTP
+from core.btp.multi_robot          import MRBTP
+from core.btp.multi_robot_basic    import MABTP
+from core.btp.multi_robot_optimal  import MAOBTP
+from core.btp.composite_action     import CABTP
 
 # DMR alias (paper's historical class name) — still works
-from mrbtp.btp import DMR     # DMR is MRBTP  →  True
+from core.btp import DMR     # DMR is MRBTP  →  True
 ```
 
 ## Pipeline at a glance
@@ -115,4 +115,4 @@ goal, action_lists ─►│ MRBTP.planning()                         │
   short-name shim files were removed.
 * **2026-06**: facade class renamed from `DMR` → `MRBTP` to match the
   paper title. `DMR` survives as a class-level alias re-exported from
-  `mrbtp.btp` (`DMR is MRBTP` → `True`).
+  `core.btp` (`DMR is MRBTP` → `True`).

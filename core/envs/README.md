@@ -1,4 +1,4 @@
-# `mrbtp/envs/` — Environment Adapters
+# `core/envs/` — Environment Adapters
 
 Every planner in this project consumes one of the environment adapters
 defined here. The package is split by **physical simulator** because each
@@ -9,7 +9,7 @@ classes.
 ## High-level layout
 
 ```
-mrbtp/envs/
+core/envs/
 ├── __init__.py
 ├── base/                          Shared abstract base
 │   ├── env.py                     Env       — root env class
@@ -50,10 +50,10 @@ mrbtp/envs/
 
 | Use case                                     | Class                                                     | Module path                                                           |
 | -------------------------------------------- | --------------------------------------------------------- | --------------------------------------------------------------------- |
-| Quick visual demo on Farama-Minigrid         | `MiniGridToMAGridEnv` (auto-registered)                    | `mrbtp.envs.gridenv.minigrid.minigrid_env`                           |
-| Robustness / parallelism benchmark (exp1/2)  | `MiniCompEnv`                                              | `mrbtp.envs.gridenv.minigrid_computation_env.mini_comp_env`           |
-| Pure-symbolic benchmark (no rendering)       | `NumericalEnv`                                             | `mrbtp.envs.numerical_env.numerical_env`                             |
-| Household / VirtualHome benchmark (exp2)     | `VHCompEnv`                                                | `mrbtp.envs.virtualhome.envs.vh_computation_env`                     |
+| Quick visual demo on Farama-Minigrid         | `MiniGridToMAGridEnv` (auto-registered)                    | `core.envs.gridenv.minigrid.minigrid_env`                            |
+| Robustness / parallelism benchmark (exp1/2)  | `MiniCompEnv`                                              | `core.envs.gridenv.minigrid_computation_env.mini_comp_env`            |
+| Pure-symbolic benchmark (no rendering)       | `NumericalEnv`                                             | `core.envs.numerical_env.numerical_env`                              |
+| Household / VirtualHome benchmark (exp2)     | `VHCompEnv`                                                | `core.envs.virtualhome.envs.vh_computation_env`                      |
 
 > The **`*_computation_env`** suffix means *symbolic / state-graph
 > evaluator only* — actions update an internal state set instead of
@@ -88,3 +88,8 @@ mrbtp.envs.gridenv.minigrid_computation_env.mini_comp_env
 mrbtp.envs.numerical_env.numsim_tools
 mrbtp.envs.virtualhome.envs.vh_computation_env
 ```
+
+> ⚠️ **Note**: in *this trimmed demo* the package is installed as `core`, so the
+> live import paths are `core.envs.gridenv.minigrid.minigrid_env` etc. The
+> `mrbtp.envs.*` paths above are the **upstream** canonical names kept for
+> reference by the archived experiment scripts; they map 1-to-1 onto `core.envs.*`.

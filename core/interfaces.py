@@ -82,17 +82,98 @@ class Renderer(Protocol):
         ...
 
 
-# ───────────────────────── 工厂（占位，P1 实现）──────────────────────────
-def make_backend(name: str, *, scene: Any) -> "SimBackend":   # noqa: D401
-    """按名字造后端（'minigrid' / 'pygame' / ...）。P1 填实现。"""
-    raise NotImplementedError(
-        "make_backend 将在 P1 实现；P0 只定义协议契约。"
-    )
+# ───────────────────────── 工厂（已落地）──────────────────────────
+# 后端注册表：名字 -> 一个「用 scene 造出 SimBackend」的构造函数。
+# 内置 'minigrid' 走现有 env；接入真实仿真器时，在自己的后端模块里调用
+# ``register_backend('pybullet', factory)`` 即可挂接，无需改动这里或规划/执行层。
+# 这正是「后端可插拔」的落点：规划器 / executor 只认 SimBackend 协议。
+_BACKEND_REGISTRY: Dict[str, Callable[..., "SimBackend"]] = {}
 
 
-def make_renderer(name: str, *, theme: str = "default",
-                  mode: str = "save_gif") -> "Renderer":      # noqa: D401
-    """按名字造渲染器，正交组合（远程默认 save_gif）。P2 填实现。"""
-    raise NotImplementedError(
-        "make_renderer 将在 P2 实现；P0 只定义协议契约。"
+def register_backend(name: str, factory: Callable[..., "SimBackend"]) -> None:
+    """注册一个后端构造函数。
+
+    Args:
+        name:    后端名（大小写不敏感），如 ``'minigrid'`` / ``'pybullet'``。
+        factory: 形如 ``factory(scene, *, render=False, **kwargs) -> SimBackend``
+                 的可调用对象；``scene`` 是一个 :class:`~app.scenario.Scenario`。
+
+    重复注册同名后端会覆盖旧的（方便热替换 / 测试桩）。
+    """
+    _BACKEND_REGISTRY[(name or "").strip().lower()] = factory
+
+
+def available_backends() -> List[str]:
+    """返回当前已注册的后端名（已排序），供 CLI / 文档 / 自检使用。"""
+    return sorted(_BACKEND_REGISTRY)
+
+
+def _register_builtin_minigrid_backend() -> None:
+    """把内置 MiniGrid 后端登记进注册表（惰性，避免顶层强依赖 env 链）。"""
+    if "minigrid" in _BACKEND_REGISTRY:
+        return
+
+    def _minigrid_factory(scene: Any, *, render: bool = False, **kwargs) -> "SimBackend":
+        # 现有 ``Scenario.build_env`` 已经构造并 reset 了一个满足 SimBackend
+        # 形状的 MiniGridToMAGridEnv（agents / reset / get_initial_state /
+        # create_action_model / get_room_index / width / height 一应俱全）。
+        # 工厂在此只是把「按名字造后端」这层抽象补齐。
+        return scene.build_env(render=render)
+
+    _BACKEND_REGISTRY["minigrid"] = _minigrid_factory
+
+
+def make_backend(name: str, *, scene: Any, render: bool = False, **kwargs) -> "SimBackend":
+    """按名字构造一个仿真后端。
+
+    Args:
+        name:   后端名（大小写不敏感）。内置 ``'minigrid'``；其余由
+                :func:`register_backend` 在各自后端模块里挂接。
+        scene:  一个 :class:`~app.scenario.Scenario`，描述世界 / 物体 /
+                目标 / 行为库选择，透传给后端构造函数。
+        render: 是否让后端保留可渲染状态（窗口 / 抓帧）。
+        **kwargs: 透传给具体后端构造函数。
+
+    Returns:
+        一个满足 :class:`SimBackend` 协议的实例。
+
+    Raises:
+        ValueError: 未知后端名（错误信息里列出已注册项，便于排查）。
+    """
+    _register_builtin_minigrid_backend()
+    key = (name or "").strip().lower()
+    factory = _BACKEND_REGISTRY.get(key)
+    if factory is None:
+        raise ValueError(
+            f"未知后端 '{name}'。当前已注册：{available_backends()}。"
+            f"接入新仿真器请在后端模块里调用 register_backend(name, factory)，"
+            f"参见 docs/PLUGGABLE_BACKEND_DESIGN.html。"
+        )
+    return factory(scene, render=render, **kwargs)
+
+
+def make_renderer(name: str, *, theme: str = "home",
+                  mode: str = "save_gif", **kwargs) -> "Renderer":   # noqa: D401
+    """按名字造渲染器，与后端正交组合（远程默认 save_gif）。
+
+    Args:
+        name:  渲染器后端名。当前支持 'pygame'（路线 A 薄后端）。
+        theme: 主题名（'home' / 'battle' / 'default'）或 Theme 实例，透传给渲染器。
+        mode:  'save_gif'（默认，攒帧→GIF，远程无显示器友好）/ 'save_frames' /
+               'both'。
+        **kwargs: 其余参数透传给具体渲染器构造（out_dir / tile / fps / gif_name）。
+
+    Returns:
+        一个满足 Renderer 协议的实例。
+
+    Raises:
+        ValueError: 未知渲染器名。
+    """
+    key = (name or "").strip().lower()
+    if key == "pygame":
+        # 延迟导入：避免在不渲染时也强依赖 pygame / PIL。
+        from backends.pygame import PygameGridRenderer
+        return PygameGridRenderer(theme, mode=mode, **kwargs)
+    raise ValueError(
+        f"未知渲染器 '{name}'。当前支持：'pygame'。"
     )

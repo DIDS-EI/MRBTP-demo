@@ -1,0 +1,358 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>mrbtp-demo · 规划层参数速查表</title>
+<style>
+  :root{
+    --blue:#2563eb; --blue-d:#1d4ed8; --blue-l:#dbeafe;
+    --green:#059669; --green-l:#d1fae5;
+    --orange:#ea580c; --orange-l:#ffedd5;
+    --purple:#7c3aed; --purple-l:#ede9fe;
+    --ink:#0f172a; --muted:#64748b; --line:#e2e8f0;
+    --bg:#ffffff; --soft:#f8fafc; --soft2:#f1f5f9;
+    --mono:"SF Mono",ui-monospace,"JetBrains Mono",Menlo,Consolas,monospace;
+    --sans:-apple-system,BlinkMacSystemFont,"Segoe UI","PingFang SC","Hiragino Sans GB",sans-serif;
+  }
+  *{box-sizing:border-box;margin:0;padding:0}
+  html{scroll-behavior:smooth}
+  body{font-family:var(--sans);color:var(--ink);background:var(--soft);line-height:1.7;font-size:16px}
+  .wrap{max-width:1000px;margin:0 auto;padding:0 24px}
+
+  .hero{background:linear-gradient(135deg,#1e3a8a 0%,#2563eb 45%,#059669 100%);color:#fff;padding:60px 0 52px;position:relative;overflow:hidden}
+  .hero::after{content:"";position:absolute;inset:0;background:radial-gradient(circle at 82% 18%,rgba(255,255,255,.12),transparent 42%);pointer-events:none}
+  .hero .wrap{position:relative}
+  .hero .tag{display:inline-block;font-family:var(--mono);font-size:13px;letter-spacing:.5px;background:rgba(255,255,255,.16);padding:5px 12px;border-radius:999px;margin-bottom:16px;backdrop-filter:blur(6px)}
+  .hero h1{font-size:38px;font-weight:800;letter-spacing:-.5px;margin-bottom:12px;line-height:1.2}
+  .hero p{font-size:17.5px;opacity:.92;max-width:720px}
+  .hero .meta{margin-top:22px;display:flex;gap:26px;flex-wrap:wrap;font-size:14px;opacity:.92}
+  .hero .meta b{display:block;font-size:21px;font-weight:700;font-family:var(--mono)}
+
+  nav{position:sticky;top:0;z-index:50;background:rgba(255,255,255,.85);backdrop-filter:blur(12px);border-bottom:1px solid var(--line)}
+  nav .wrap{display:flex;gap:6px;flex-wrap:wrap;padding:12px 24px}
+  nav a{font-size:13.5px;color:var(--muted);text-decoration:none;padding:6px 12px;border-radius:8px;transition:.15s;font-weight:500}
+  nav a:hover{background:var(--blue-l);color:var(--blue-d)}
+
+  section{padding:48px 0;border-bottom:1px solid var(--line)}
+  section:last-child{border-bottom:none}
+  .kicker{font-family:var(--mono);font-size:13px;color:var(--blue);font-weight:600;letter-spacing:1px;text-transform:uppercase;margin-bottom:8px}
+  h2{font-size:28px;font-weight:800;letter-spacing:-.4px;margin-bottom:10px}
+  h2 .num{color:var(--blue);font-family:var(--mono);margin-right:10px}
+  h3{font-size:20px;font-weight:700;margin:30px 0 12px}
+  p{margin-bottom:14px;color:#1e293b}
+  .lead{font-size:18px;color:#334155}
+
+  .tldr{background:linear-gradient(120deg,var(--blue-l),#eef6ff);border-left:4px solid var(--blue);border-radius:0 12px 12px 0;padding:16px 20px;margin:18px 0 28px}
+  .tldr .lbl{font-family:var(--mono);font-size:12px;color:var(--blue-d);font-weight:700;letter-spacing:.5px;display:block;margin-bottom:4px}
+  .tldr p{margin:0;font-size:15.5px;color:#1e3a5f}
+
+  .note{background:var(--orange-l);border-left:4px solid var(--orange);border-radius:0 12px 12px 0;padding:14px 18px;margin:18px 0;font-size:15px}
+  .note b{color:#9a3412}
+  .ok{background:var(--green-l);border-left:4px solid var(--green);border-radius:0 12px 12px 0;padding:14px 18px;margin:18px 0;font-size:15px}
+  .ok b{color:#065f46}
+
+  /* dimension cards */
+  .dims{display:grid;grid-template-columns:repeat(2,1fr);gap:18px;margin:24px 0}
+  .dim{background:var(--bg);border:1px solid var(--line);border-radius:14px;padding:20px 22px;position:relative;overflow:hidden;border-top:3px solid var(--blue)}
+  .dim.d2{border-top-color:var(--purple)}
+  .dim.d3{border-top-color:var(--green)}
+  .dim.d4{border-top-color:var(--orange)}
+  .dim .axis{font-family:var(--mono);font-size:12px;font-weight:700;letter-spacing:.5px;color:var(--blue);margin-bottom:4px}
+  .dim.d2 .axis{color:var(--purple)} .dim.d3 .axis{color:var(--green)} .dim.d4 .axis{color:var(--orange)}
+  .dim h4{font-size:17px;font-weight:700;margin-bottom:8px}
+  .dim .flag{font-family:var(--mono);font-size:13px;background:var(--ink);color:#e2e8f0;padding:3px 9px;border-radius:6px;display:inline-block;margin-bottom:10px}
+  .dim p{font-size:13.8px;color:#475569;margin-bottom:8px}
+  .dim .layer{position:absolute;top:16px;right:18px;font-family:var(--mono);font-size:10.5px;font-weight:700;padding:3px 9px;border-radius:999px}
+  .lay-plan{background:var(--blue-l);color:var(--blue-d)}
+  .lay-exec{background:var(--orange-l);color:#9a3412}
+
+  table{width:100%;border-collapse:collapse;margin:20px 0;font-size:14px;background:var(--bg);border-radius:12px;overflow:hidden;box-shadow:0 1px 3px rgba(15,23,42,.06)}
+  th{background:var(--soft2);text-align:left;padding:11px 14px;font-weight:700;font-size:13px;color:#334155;border-bottom:2px solid var(--line)}
+  td{padding:11px 14px;border-bottom:1px solid var(--line);vertical-align:top}
+  tr:last-child td{border-bottom:none}
+  td code,th code{font-size:12.5px}
+  .mono{font-family:var(--mono);font-size:12.5px}
+  .ctr{text-align:center}
+
+  code{font-family:var(--mono);font-size:.88em;background:var(--soft2);padding:2px 6px;border-radius:5px;color:#be123c;border:1px solid var(--line)}
+  pre.cmd{background:#0f172a;color:#e2e8f0;border-radius:12px;padding:18px 20px;overflow-x:auto;font-family:var(--mono);font-size:13px;line-height:1.8;margin:16px 0;white-space:pre;tab-size:2}
+  pre.cmd .cm{color:#64748b}
+  pre.cmd .fl{color:#fbbf24}
+  pre.cmd .sc{color:#7dd3fc}
+
+  .pill{display:inline-block;font-family:var(--mono);font-size:11px;font-weight:700;padding:2px 8px;border-radius:999px;vertical-align:middle}
+  .p-def{background:var(--green);color:#fff}
+  .p-opt{background:var(--blue);color:#fff}
+  .yes{color:var(--green);font-weight:800}
+  .no{color:#cbd5e1;font-weight:800}
+  .warn{color:var(--orange);font-weight:800}
+
+  ul,ol{margin:0 0 16px 22px}
+  li{margin-bottom:7px}
+  figure{margin:26px 0;background:var(--bg);border:1px solid var(--line);border-radius:16px;padding:24px;overflow-x:auto}
+  figure svg{display:block;margin:0 auto;max-width:100%;height:auto}
+  figcaption{text-align:center;color:var(--muted);font-size:13.5px;margin-top:14px;font-style:italic}
+  @media(max-width:760px){.dims{grid-template-columns:1fr}.hero h1{font-size:28px}}
+  footer{text-align:center;padding:38px 0;color:var(--muted);font-size:13px}
+</style>
+</head>
+<body>
+
+<header class="hero">
+  <div class="wrap">
+    <span class="tag">mrbtp-demo · 规划/执行参数 · 2026-06</span>
+    <h1>多智能体规划层<br>参数空间速查表</h1>
+    <p>多智能体规划到底有几种可调方法、各用什么命令、是否每个场景都支持？答案是 <b>4 个正交开关</b>——前 3 个在规划层、第 4 个在执行层；任意组合，且 4 个场景全部支持。本表给出每个开关的代码出处、生效条件、组合矩阵与可直接粘贴的命令。</p>
+    <div class="meta">
+      <div><b>4</b>正交维度</div>
+      <div><b>3+1</b>规划层 + 执行层</div>
+      <div><b>4</b>全支持场景</div>
+      <div><b>0</b>场景级限制</div>
+    </div>
+  </div>
+</header>
+
+<nav>
+  <div class="wrap">
+    <a href="#tldr">结论先行</a>
+    <a href="#dims">四个维度</a>
+    <a href="#table">参数详表</a>
+    <a href="#matrix">组合矩阵</a>
+    <a href="#cost">成本法则</a>
+    <a href="#recipes">命令配方</a>
+  </div>
+</nav>
+
+<!-- ===== 结论 ===== -->
+<section id="tldr">
+  <div class="wrap">
+    <div class="kicker">TL;DR</div>
+    <h2><span class="num">①</span>结论先行</h2>
+    <div class="tldr">
+      <span class="lbl">一句话</span>
+      <p>规划层（<code>plan_behavior_trees</code>）真正有 <b>3 个独立可调维度</b>：基础算法、宏动作、扩展策略；你以为的「信念方法」其实<b>不在规划层</b>，而是执行层（<code>execute</code>）的第 4 个开关。四者彼此正交、可任意组合，且都是<b>函数级 / CLI 级参数，与具体场景解耦</b>——所以 <code>warehouse / smoke / home / battle</code> 全都支持完整组合，差别只在<b>性能</b>，不是「某些场景不支持某种方法」。</p>
+    </div>
+    <h3>一个常见的归类校正</h3>
+    <table>
+      <tr><th>常见提法</th><th>实际归属</th><th>说明</th></tr>
+      <tr><td>「要不要都扩展 / sound&amp;complete 基础方法」</td><td class="mono">规划层 ①+③</td><td>「sound&amp;complete」对应 <code>--planner optimal</code>（MAOBTP）；「都扩展 vs 单扩展」是另一个独立开关 <code>--single-expand</code></td></tr>
+      <tr><td>「要不要采用<b>信念</b>的方法」</td><td class="mono"><span class="warn">执行层</span>，非规划层</td><td><code>share_belief</code> 是 <code>execute()</code> 的参数，规划阶段根本不感知它</td></tr>
+      <tr><td>「只选一个智能体单扩展」</td><td class="mono">规划层 ③</td><td>就是 <code>--single-expand</code>，与基础算法正交</td></tr>
+    </table>
+  </div>
+</section>
+
+<!-- ===== 四个维度卡片 ===== -->
+<section id="dims">
+  <div class="wrap">
+    <div class="kicker">The Four Axes</div>
+    <h2><span class="num">②</span>四个正交维度</h2>
+    <p class="lead">每张卡是一个独立维度，可自由组合。蓝/紫/绿在<b>规划层</b>，橘色在<b>执行层</b>。</p>
+    <div class="dims">
+      <div class="dim d1">
+        <span class="layer lay-plan">PLAN</span>
+        <div class="axis">① BASE ALGORITHM</div>
+        <h4>基础算法</h4>
+        <div class="flag">--planner optimal | basic</div>
+        <p><b>optimal = MAOBTP</b>（默认）：代价感知，搜索前沿是<b>优先队列</b>（按累积动作代价 heap 排序），优先选更便宜的计划，且<b>只有它支持宏</b>。</p>
+        <p><b>basic = MABTP</b>：FIFO 基线，纯原子动作，不支持宏。</p>
+      </div>
+      <div class="dim d2">
+        <span class="layer lay-plan">PLAN</span>
+        <div class="axis">② MACROS</div>
+        <h4>宏动作（复合子树）</h4>
+        <div class="flag">--no-composite 关闭</div>
+        <p>是否预规划 LLM 式复合动作子树（如 <code>GetKeyAndOpenDoor</code>），被当作 <b>0 代价单步</b>塞进动作模型。默认<b>开</b>。</p>
+        <p><span class="warn">⚠ 仅 optimal 生效</span>：basic 下传了会打印黄色警告并忽略。</p>
+      </div>
+      <div class="dim d3">
+        <span class="layer lay-plan">PLAN</span>
+        <div class="axis">③ EXPANSION POLICY</div>
+        <h4>扩展策略</h4>
+        <div class="flag">--single-expand</div>
+        <p><b>全扩展（默认 False）</b>：每弹出一个目标条件，<b>每个 agent 都回链扩展</b>。最大灵活性，但分支因子随队伍膨胀，多目标会爆炸。</p>
+        <p><b>单扩展（True）</b>：每条件<b>恰一个 agent</b> 扩展，用轮转游标 <code>rr_cursor</code> 分工，计划期即完成分工、剪枝。</p>
+        <p><span class="warn">⚠ 仅 optimal 生效</span>。</p>
+      </div>
+      <div class="dim d4">
+        <span class="layer lay-exec">EXEC</span>
+        <div class="axis">④ BELIEF SPACE</div>
+        <h4>信念空间（协同）</h4>
+        <div class="flag">--no-share-belief 关闭</div>
+        <p>多智能体<b>共享通信黑板</b>。默认<b>开</b>（论文行为）：每个 agent 把预测谓词写进共享信念空间，队友据此协同、避免重复劳动。</p>
+        <p>关闭 = 协同<b>消融实验</b>，看团队「失去协调」。<span class="warn">规划阶段完全不碰它</span>。</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ===== 参数详表 ===== -->
+<section id="table">
+  <div class="wrap">
+    <div class="kicker">Reference Table</div>
+    <h2><span class="num">③</span>参数详表（含代码出处）</h2>
+    <table>
+      <tr>
+        <th>维度 / Flag</th><th>所属层</th><th>默认</th>
+        <th>生效条件</th><th>代码出处</th>
+      </tr>
+      <tr>
+        <td><code>--planner optimal|basic</code></td>
+        <td>规划</td>
+        <td><code>optimal</code> <span class="pill p-def">默认</span></td>
+        <td>始终</td>
+        <td class="mono">planner.py:51,120<br>btp/multi_robot_optimal.py<br>btp/multi_robot_basic.py</td>
+      </tr>
+      <tr>
+        <td><code>--no-composite</code></td>
+        <td>规划</td>
+        <td>宏<b>开</b></td>
+        <td><span class="warn">仅 optimal</span>；basic 传了警告并忽略</td>
+        <td class="mono">planner.py:52,97–114</td>
+      </tr>
+      <tr>
+        <td><code>--single-expand</code></td>
+        <td>规划</td>
+        <td>全扩展 (False)</td>
+        <td><span class="warn">仅 optimal</span>；basic 传了警告并忽略</td>
+        <td class="mono">planner.py:53,116–133<br>multi_robot_optimal.py:105,<br>157(全),167–182(单+rr_cursor)</td>
+      </tr>
+      <tr>
+        <td><code>--share-belief</code> /<br><code>--no-share-belief</code></td>
+        <td><span class="warn">执行</span></td>
+        <td>共享<b>开</b> <span class="pill p-def">默认</span></td>
+        <td>始终（execute 阶段）</td>
+        <td class="mono">executor.py:90<br>env.blackboard["predict_condition"]</td>
+      </tr>
+    </table>
+    <div class="note"><b>「仅 optimal 生效」是什么意思：</b><code>basic</code>(MABTP) 是纯 FIFO 原子规划器，不实现宏与分工扩展。你在 <code>--planner basic</code> 下再叠加 <code>--no-composite</code> 或 <code>--single-expand</code>，程序不会报错，但会打印一行黄色警告并<b>忽略</b>该 flag（<code>planner.py:113</code> / <code>:128</code>）。</div>
+  </div>
+</section>
+
+<!-- ===== 组合矩阵 ===== -->
+<section id="matrix">
+  <div class="wrap">
+    <div class="kicker">Combination Matrix</div>
+    <h2><span class="num">④</span>组合矩阵：哪些能叠、叠了有效吗</h2>
+    <table>
+      <tr>
+        <th>组合</th>
+        <th class="ctr">合法</th>
+        <th class="ctr">宏生效</th>
+        <th class="ctr">分工生效</th>
+        <th>典型用途</th>
+      </tr>
+      <tr>
+        <td><code>optimal</code>（默认全开）</td>
+        <td class="ctr yes">✓</td><td class="ctr yes">✓</td><td class="ctr no">—</td>
+        <td>论文默认行为：代价最优 + 宏 + 全扩展</td>
+      </tr>
+      <tr>
+        <td><code>optimal --single-expand</code></td>
+        <td class="ctr yes">✓</td><td class="ctr yes">✓</td><td class="ctr yes">✓</td>
+        <td>分工式规划：多目标剪枝、每机器人拿专属小树</td>
+      </tr>
+      <tr>
+        <td><code>optimal --no-composite</code></td>
+        <td class="ctr yes">✓</td><td class="ctr no">✗</td><td class="ctr no">—</td>
+        <td>消融宏：回退纯原子动作，看宏带来的增益</td>
+      </tr>
+      <tr>
+        <td><code>basic</code></td>
+        <td class="ctr yes">✓</td><td class="ctr no">✗</td><td class="ctr no">✗</td>
+        <td>FIFO 基线对照</td>
+      </tr>
+      <tr>
+        <td><code>basic --no-composite</code></td>
+        <td class="ctr yes">✓</td><td class="ctr no">✗</td><td class="ctr no">✗</td>
+        <td>等价于 basic（basic 本就无宏，flag 冗余）</td>
+      </tr>
+      <tr>
+        <td><code>basic --single-expand</code></td>
+        <td class="ctr warn">⚠</td><td class="ctr no">✗</td><td class="ctr no">✗</td>
+        <td>合法但 <b>single-expand 被忽略</b>（仅警告）</td>
+      </tr>
+      <tr>
+        <td>任意 <code>+ --no-share-belief</code></td>
+        <td class="ctr yes">✓</td><td class="ctr">↔</td><td class="ctr">↔</td>
+        <td>正交叠加执行层协同消融，不影响规划侧任何组合</td>
+      </tr>
+    </table>
+    <div class="ok"><b>关键：</b><code>--no-share-belief</code> 与上面任意规划组合<b>完全正交</b>——它只在 plan 完成后的 execute 阶段起作用，可以无脑叠加到任何一行上。</div>
+  </div>
+</section>
+
+<!-- ===== 成本法则 ===== -->
+<section id="cost">
+  <div class="wrap">
+    <div class="kicker">Cost Law</div>
+    <h2><span class="num">⑤</span>「每个场景都支持吗」——支持，约束只在性能</h2>
+    <p>四轴全是 <code>plan_behavior_trees</code> / <code>execute</code> 的入参，与具体 <code>Scenario</code> 解耦，所以 <b>4 个场景任意组合都支持</b>。唯一现实约束是规划耗时，它遵循一条实测法则：</p>
+    <figure>
+      <svg viewBox="0 0 760 150" xmlns="http://www.w3.org/2000/svg" font-family="-apple-system,sans-serif">
+        <text x="380" y="42" text-anchor="middle" font-size="22" font-weight="800" fill="#0f172a">规划开销 ∝ 目标数 × 搬运跳数 × 房间尺寸</text>
+        <text x="380" y="74" text-anchor="middle" font-size="14" fill="#dc2626" font-weight="700">↑ 注意：不由「房间数」驱动</text>
+        <g font-size="13" fill="#475569">
+          <rect x="70" y="96" width="180" height="36" rx="8" fill="#d1fae5" stroke="#059669"/>
+          <text x="160" y="113" text-anchor="middle" font-weight="700" fill="#065f46">1 球 1 跳 ≈ 0.09s</text>
+          <text x="160" y="127" text-anchor="middle" font-size="11">轻松</text>
+          <rect x="290" y="96" width="180" height="36" rx="8" fill="#fef9c3" stroke="#ca8a04"/>
+          <text x="380" y="113" text-anchor="middle" font-weight="700" fill="#854d0e">1 球 2 跳 ≈ 0.43s</text>
+          <text x="380" y="127" text-anchor="middle" font-size="11">可接受</text>
+          <rect x="510" y="96" width="180" height="36" rx="8" fill="#fee2e2" stroke="#dc2626"/>
+          <text x="600" y="113" text-anchor="middle" font-weight="700" fill="#991b1b">2 独立目标 ≈ 23s</text>
+          <text x="600" y="127" text-anchor="middle" font-size="11">组合爆炸</text>
+        </g>
+      </svg>
+      <figcaption>图 · 实测（紧凑 15×7 四房间）：成本由「目标数 × 跳数」主导。全扩展下双独立目标会爆炸——此时 <code>--single-expand</code> 能显著剪枝</figcaption>
+    </figure>
+    <div class="note"><b>设计法则：</b>每个场景给 <b>1–2 个短跳目标</b>即可；若确需多目标 / 多跳，优先加 <code>--single-expand</code> 做分工剪枝。这是「跑得快不快」的问题，不是「支不支持」的问题。</div>
+  </div>
+</section>
+
+<!-- ===== 命令配方 ===== -->
+<section id="recipes">
+  <div class="wrap">
+    <div class="kicker">Copy-paste Recipes</div>
+    <h2><span class="num">⑥</span>常用命令配方</h2>
+
+    <h3>逐维度单独触发</h3>
+<pre class="cmd"><span class="cm"># ① 基础算法：FIFO 基线对照</span>
+python -m app.run <span class="fl">--scenario</span> <span class="sc">home</span> <span class="fl">--planner basic</span>
+
+<span class="cm"># ② 宏动作：关掉复合宏，回退纯原子</span>
+python -m app.run <span class="fl">--scenario</span> <span class="sc">home</span> <span class="fl">--no-composite</span>
+
+<span class="cm"># ③ 扩展策略：分工式规划（每条件一个 agent）</span>
+python -m app.run <span class="fl">--scenario</span> <span class="sc">battle</span> <span class="fl">--single-expand</span>
+
+<span class="cm"># ④ 信念空间：协同消融（执行层）</span>
+python -m app.run <span class="fl">--scenario</span> <span class="sc">warehouse</span> <span class="fl">--no-share-belief</span></pre>
+
+    <h3>最硬核的全消融组合</h3>
+<pre class="cmd"><span class="cm"># 分工式规划 + 关宏 + 关信念，并用 pygame 主题渲染出 GIF</span>
+python -m app.run <span class="fl">--scenario</span> <span class="sc">battle</span> \
+  <span class="fl">--planner optimal --single-expand --no-composite --no-share-belief</span> \
+  <span class="fl">--renderer</span> <span class="sc">pygame</span> <span class="fl">--theme</span> <span class="sc">battle</span> <span class="fl">--seed</span> 6</pre>
+
+    <h3>快速自检 / 出图</h3>
+<pre class="cmd"><span class="cm"># 无头冒烟自检（带自动重试，CI 友好）</span>
+python -m app.verify
+
+<span class="cm"># 四房间场景出 GIF（远程无显示器友好）</span>
+python -m app.run <span class="fl">--scenario</span> <span class="sc">home</span>   <span class="fl">--renderer</span> <span class="sc">pygame</span>
+python -m app.run <span class="fl">--scenario</span> <span class="sc">battle</span> <span class="fl">--renderer</span> <span class="sc">pygame</span></pre>
+
+    <div class="ok"><b>记忆口诀：</b>规划层 3 开关（<b>算法 / 宏 / 扩展策略</b>）+ 执行层 1 开关（<b>信念</b>）= 4 个正交维度；4 个场景全支持，差异只在性能不在能力。</div>
+  </div>
+</section>
+
+<footer>
+  mrbtp-demo · 规划层参数速查表 · 生成于 2026-06-12 ·
+  源文档 <span class="mono">docs/PLANNING_OPTIONS.html</span> ·
+  配套 <span class="mono">ARCHITECTURE.html</span> · <span class="mono">app/README.md</span>
+</footer>
+
+</body>
+</html>

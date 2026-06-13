@@ -27,7 +27,7 @@ def get_classes_from_folder(folder_path):
 
 
 class BehaviorLibrary(dict):
-    def __init__(self,lib_path=None):
+    def __init__(self, lib_path=None):
         super().__init__()
         if lib_path:
             self.load_from_btml(lib_path)
@@ -36,20 +36,47 @@ class BehaviorLibrary(dict):
         return copy.deepcopy(self)
 
     def load_from_btml(self, lib_path):
-        # type_list = ["Action", "Condition"]
+        """Load Condition/Action node classes from one or more library roots.
+
+        Args:
+            lib_path: either a single library-root path (the historical
+                behaviour) **or** an ordered iterable of paths.  When several
+                paths are given they are loaded as an *overlay*: each later
+                root is merged on top of the earlier ones, and a node whose
+                class name collides with an already-loaded one overrides it.
+                This is what lets a *domain* library (e.g. ``home_service`` /
+                ``battlefield``) reuse the shared MiniGrid primitives by simply
+                listing ``[minigrid_root, domain_root]`` — the domain folder
+                only needs to ship its handful of new nodes, never copies of
+                the grid primitives.
+
+        A single string keeps the exact previous semantics, so every existing
+        caller (and the byte-for-byte default behaviour) is preserved.
+        """
+        # Reset once, then merge every requested root into the same dicts.
         self['Action'] = {}
         self['Condition'] = {}
 
+        if isinstance(lib_path, (str, bytes, os.PathLike)):
+            paths = [lib_path]
+        else:
+            paths = list(lib_path)
+
+        for root in paths:
+            self._merge_root(root)
+
+    def _merge_root(self, lib_path):
+        """Merge a single library root's nodes into ``self`` (overlay-friendly)."""
         folder_list = os.listdir(lib_path)
 
         for folder_name in folder_list:
             path = os.path.join(lib_path, folder_name)
-            if os.path.isfile(path): continue
-            # self[type] = get_classes_from_folder(path)
-            for name,cls in get_classes_from_folder(path).items():
-                if issubclass(cls,Action):
+            if os.path.isfile(path):
+                continue
+            for name, cls in get_classes_from_folder(path).items():
+                if issubclass(cls, Action):
                     self['Action'][name] = cls
-                elif issubclass(cls,Condition):
+                elif issubclass(cls, Condition):
                     self['Condition'][name] = cls
                 else:
                     raise TypeError(name + ' is not Action or Condition.')

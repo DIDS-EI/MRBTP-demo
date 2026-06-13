@@ -35,8 +35,8 @@ bash scripts/p0_refactor.sh --dry-run        # 只打印将做什么，不动文
 
 ### 三个工程安全点
 
-1. **`mrbtp` 是 `mrbtp_demo` 的前缀** —— 改名用 perl 词边界 `\bmrbtp\b`，
-   `mrbtp_demo` 中 `mrbtp` 右侧是下划线（单词字符），不构成词边界，**天然不被误伤**。
+1. **`mrbtp` 是 `app` 的前缀** —— 改名用 perl 词边界 `\bmrbtp\b`，
+   `app` 中 `mrbtp` 右侧是下划线（单词字符），不构成词边界，**天然不被误伤**。
 2. **`ROOT_PATH` 基于 `__file__` 相对定位**（`os.path.join(__file__,"../..")`），
    `importlib` 也是按文件路径加载 —— 包改名后 behavior_lib 仍能自动找到，无需改路径逻辑。
 3. **`verify.py` 自带多次重试**（`--attempts 6`）—— planner 是固有 flaky
