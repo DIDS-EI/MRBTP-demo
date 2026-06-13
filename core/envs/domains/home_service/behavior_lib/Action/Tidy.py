@@ -50,11 +50,8 @@ class Tidy(Action):
         if self.check_if_pre_in_predict_condition():
             return Status.RUNNING
 
-        if self.env.get_room_index(self.agent.position) == self.room_index:
+        # 自带「最后一公里进房」，规避门格判定死锁（详见 MinigridAction.reach_room_interior）。
+        if self.reach_room_interior(self.room_index):
             self.env.set_fluent(f"IsTidy(room-{self.room_index})", True)
             self.agent.action = Actions.done
-            return Status.RUNNING
-
-        # Not in the room yet: idle and let the navigation subtree move us.
-        self.agent.action = Actions.done
         return Status.RUNNING

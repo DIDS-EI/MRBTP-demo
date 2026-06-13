@@ -32,7 +32,11 @@ from core.utils.tools import print_colored
 _RE_NEAR = re.compile(r"IsNear\(([^)]+)\)")
 _RE_HOLDING = re.compile(r"IsHolding\(([^)]+)\)")
 _RE_HAND_EMPTY = re.compile(r"IsHandEmpty\(([^)]+)\)")
-_RE_IN_ROOM = re.compile(r"IsInRoom\(([^,]+),(\d+)\)")
+# NOTE: the room id is ``room-3``-style (alpha prefix + dash), NOT a bare
+# integer.  The original ``(\d+)`` never matched, so the "same entity in two
+# different rooms" conflict pruning below silently did nothing.  ``([^)]+)``
+# captures the full ``room-X`` token up to the closing paren.
+_RE_IN_ROOM = re.compile(r"IsInRoom\(([^,]+),([^)]+)\)")
 _RE_OPEN = re.compile(r"IsOpen\(([^)]+)\)")
 _RE_CLOSE = re.compile(r"IsClose\(([^)]+)\)")
 

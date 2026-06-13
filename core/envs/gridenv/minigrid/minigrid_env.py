@@ -596,8 +596,11 @@ class MiniGridToMAGridEnv(MiniGridMAGridEnv):
                     return True
                 empty_hand_dic[agent_id] = True
 
-            # Detect IsInRoom() patterns
-            match_room = re.search(r'IsInRoom\(([^,]+),(\d+)\)', c)
+            # Detect IsInRoom() patterns.
+            # Room ids look like ``room-3`` (alpha prefix + dash), not a bare
+            # integer; the previous ``(\d+)`` never matched so this conflict
+            # check was a no-op.  ``([^)]+)`` captures the full ``room-X`` token.
+            match_room = re.search(r'IsInRoom\(([^,]+),([^)]+)\)', c)
             if match_room:
                 entity_id = match_room.group(1).strip()
                 room_id = match_room.group(2).strip()

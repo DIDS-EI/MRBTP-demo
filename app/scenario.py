@@ -145,18 +145,36 @@ class Scenario:
         for color, room_index in self.balls:
             env.place_object_in_room(Ball(color), room_index)
 
-        # "Assume every agent can open any door": unlock every locked door but
-        # keep the door *objects* in place.  The room-index DFS treats a door
-        # cell as a wall regardless of its lock state, so the multi-room
-        # partition is preserved — we only drop the need to fetch a key.
+        # "Doors are not an obstacle in this scenario": unlock **and open**
+        # every door, keeping the door *objects* in place.  The room-index DFS
+        # treats a door cell as a wall regardless of its open/lock state, so the
+        # multi-room partition is preserved — we only drop both the need to
+        # fetch a key *and* the need to plan an explicit open step.
+        #
+        # Why open (``is_open=True``) and not merely unlock+close:
+        #   The domain navigation primitive ``GoBtwRoom`` is *location-agnostic*
+        #   in the home_service / battlefield libraries — its precondition was
+        #   relaxed to just ``{ IsOpen(door) }`` so an agent can reach any room
+        #   from any starting cell in a single back-chaining step.  That only
+        #   pays off if ``IsOpen(door)`` already holds in the start state; if the
+        #   door starts *closed*, the planner must back-chain an open step, and
+        #   opening requires first walking to the door (``IsNear(agent,door)``),
+        #   which re-introduces ``GoToInRoom(door)``'s room precondition and
+        #   re-creates the very room-chain explosion we are eliminating (planning
+        #   blew past the 20 s limit).  Opening the doors up front collapses that
+        #   whole sub-problem: ``IsOpen`` enters the start state, ``GoBtwRoom``
+        #   stops in one step, and proj2 / proj3 planning drops from a 20 s
+        #   timeout to ~0.5 s.  proj1 never sets ``unlock_all_doors`` (its single
+        #   door is genuinely locked and must be opened with a key), so this
+        #   branch never runs for it — proj1 is byte-for-byte unaffected.
         if self.unlock_all_doors:
             grid = minigrid_env.unwrapped.grid
             for gx in range(grid.width):
                 for gy in range(grid.height):
                     cell = grid.get(gx, gy)
-                    if isinstance(cell, Door) and cell.is_locked:
+                    if isinstance(cell, Door):
                         cell.is_locked = False
-                        cell.is_open = False  # closed but openable by anyone
+                        cell.is_open = True  # open & passable for everyone
 
         # Second reset re-indexes the world now that the balls exist.
         env.reset(seed=self.seed)

@@ -117,5 +117,5 @@ python examples/projects/proj1_two_rooms/solution/solve.py --headless  # 无头�
 | `PutInRoom(self, 物体, 房间)` | 把手里的物体放进某房间（随便落地）|
 | `PutNearInRoom(self, 物体, 锚点, 房间)` | 放到某锚点物体旁（proj2 用）|
 
-> 想看这些 API 的完整列表和真实大场景用法，看 `../../docs/ARCHITECTURE.html`
+> 想看这些 API 的完整列表和真实大场景用法，看 `../../app/TUTORIAL.html`
 > 和 `../../app/scenario.py`（仓库自带的 warehouse / smoke / home / battle 场景）。
