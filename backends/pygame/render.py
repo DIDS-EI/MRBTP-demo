@@ -19,6 +19,7 @@ close() 时用 PIL 把帧序列合成 GIF。
 from __future__ import annotations
 
 import os
+import re
 import time
 from pathlib import Path
 from typing import List, Optional, Tuple
@@ -33,6 +34,14 @@ from themes import get_theme, Theme  # noqa: E402
 
 # minigrid 的 4 向：0→右 1→下 2→左 3→上（与 DIR_TO_VEC 一致）。
 _DIR_VEC = [(1, 0), (0, 1), (-1, 0), (0, -1)]
+
+# 从行为树 StatusVisitor 的逐行输出里，抓「此刻正在执行的高层动作叶子」。
+# 每行形如 ``action GoBtwRoom(agent-0,room-0,room-1): RUNNING``——其中以
+# ``action `` 开头、状态为 RUNNING 的那一行，就是该 agent 当前在跑的动作
+# （condition 叶子前缀是 ``condition ``，不会被这条正则命中）。实测每个 agent
+# 每步至多一个 RUNNING action 叶子；宏（如 SweepKitchen()）展开后会显示其
+# 内部的具体动作（如 Wipe(agent-1,ball-1)），正是 debug 想看的粒度。
+_RE_RUNNING_ACTION = re.compile(r"^action (.+?): RUNNING$", re.M)
 
 
 class PygameGridRenderer:
@@ -74,6 +83,7 @@ class PygameGridRenderer:
         self._step = 0
         self._inited = False
         self._font: Optional[pygame.font.Font] = None
+        self._hud_font: Optional[pygame.font.Font] = None
 
         # ── live（实时窗口）模式专用状态 ──
         self._live = self.mode == "live"
@@ -131,6 +141,7 @@ class PygameGridRenderer:
                 os.environ.pop("SDL_VIDEODRIVER", None)
         pygame.init()
         self._font = self._load_font(13)
+        self._hud_font = self._load_font(12)   # HUD 每-agent 行用稍小的字号
         self._inited = True
 
     def _blit_live(self, surf: pygame.Surface) -> None:
@@ -313,7 +324,12 @@ class PygameGridRenderer:
     # ───────────────────────── 内部：画一帧 ─────────────────────────
     def _draw_frame(self, backend) -> pygame.Surface:
         w, h, t = backend.width, backend.height, self.tile
-        margin_top = 28  # 顶部留一条状态带
+        # 顶部 HUD：第一行是「主题 · step N」，其下每个 agent 占一行，实时显示它
+        # 此刻在跑的高层动作（供 debug 一眼看出谁卡在哪）。HUD 高度随 agent 数量
+        # 动态算，保证网格不被压盖。
+        n_agents = len(getattr(backend, "agents", []) or [])
+        line_h = 18
+        margin_top = 26 + (n_agents * line_h + 6 if n_agents else 0)
         surf = pygame.Surface((w * t, h * t + margin_top))
         surf.fill(self.theme.background)
 
@@ -354,13 +370,81 @@ class PygameGridRenderer:
         for agent in backend.agents:
             self._draw_agent(surf, agent, margin_top)
 
-        # 7) 顶部状态带
-        if self._font is not None:
-            txt = f"{self.theme.name}  ·  step {self._step}"
-            label = self._font.render(txt, True, self.theme.label)
-            surf.blit(label, (8, 6))
+        # 7) 顶部 HUD：标题带 + 每个 agent 当前动作（debug 用）
+        self._draw_hud(surf, backend, margin_top)
 
         return surf
+
+    # ───────────────────────── 内部：顶部 HUD ─────────────────────────
+    @staticmethod
+    def _running_action(agent) -> str:
+        """从 agent 的行为树 tick 输出里，解析它此刻正在执行的高层动作。
+
+        读 ``agent.bt.visitor.output_str``（StatusVisitor 每个叶子一行），抓出
+        唯一一行 ``action ...: RUNNING``，去掉 ``self``/``agent-i`` 这类噪声参数后
+        返回紧凑的动作名，例如 ``GoBtwRoom(room-0→room-1)``、``Wipe(ball-1)``。
+        没有正在跑的动作（动作刚结束 / agent 在等待）时返回空串。
+        """
+        bt = getattr(agent, "bt", None)
+        visitor = getattr(bt, "visitor", None) if bt is not None else None
+        out = getattr(visitor, "output_str", "") if visitor is not None else ""
+        if not out:
+            return ""
+        m = _RE_RUNNING_ACTION.findall(out)
+        if not m:
+            return ""
+        raw = m[-1].strip()          # 形如 GoBtwRoom(agent-0,room-0,room-1)
+        # 拆出动作名与参数，丢掉首个 self / agent-x 主语，让标签更短更聚焦。
+        if "(" in raw and raw.endswith(")"):
+            head, body = raw[:-1].split("(", 1)
+            parts = [p for p in body.split(",") if p.strip()]
+            if parts and (parts[0].strip() in ("self",) or
+                          parts[0].strip().startswith("agent-")):
+                parts = parts[1:]
+            inner = "→".join(p.strip() for p in parts)
+            return f"{head}({inner})" if inner else f"{head}()"
+        return raw
+
+    def _draw_hud(self, surf, backend, margin_top) -> None:
+        """画顶部状态带：第一行「主题 · step」，其下每个 agent 一行当前动作。"""
+        if self._font is None:
+            return
+        agents = getattr(backend, "agents", []) or []
+
+        # 半透明深色底，让 HUD 文字在任何主题底色上都清晰可读。
+        bg = pygame.Surface((surf.get_width(), margin_top), pygame.SRCALPHA)
+        bg.fill((0, 0, 0, 150))
+        surf.blit(bg, (0, 0))
+
+        # 第一行：主题 · step
+        title = f"{self.theme.name}  ·  step {self._step}"
+        surf.blit(self._font.render(title, True, self.theme.label), (8, 5))
+
+        # 其下：每个 agent 一行——色块 + agent-i + 高层动作 + minigrid 原语
+        hud_font = self._hud_font or self._font
+        line_h = 18
+        for i, agent in enumerate(agents):
+            y = 26 + i * line_h
+            aid = int(getattr(agent, "id", i))
+            style = getattr(agent, "render_style", None) or {}
+            color = style.get("color") or self.theme.agent_color(aid)
+
+            # 与画面里 agent 同色的小方块，HUD↔画面一眼对应。
+            pygame.draw.rect(surf, color, (8, y + 3, 10, 10), border_radius=2)
+
+            act = self._running_action(agent)
+            prim = getattr(getattr(agent, "action", None), "name", None) or "—"
+            if act:
+                text = f"agent-{aid}  {act}   [{prim}]"
+            else:
+                # 没有正在跑的高层动作：要么任务完成，要么在等队友/门。
+                done = bool(getattr(agent, "bt_success", False))
+                tail = "✓ 完成" if done else "待命/等待"
+                text = f"agent-{aid}  {tail}   [{prim}]"
+            # 完成的 agent 用柔和色，进行中的用主题前景色，便于扫读。
+            txt_col = ((140, 200, 150) if (not act and
+                       getattr(agent, "bt_success", False)) else self.theme.label)
+            surf.blit(hud_font.render(text, True, txt_col), (24, y))
 
     def _draw_room_labels(self, surf, backend, off) -> None:
         """把每个房间的中文别名画在该房间的几何中心。"""
