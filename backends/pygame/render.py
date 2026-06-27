@@ -140,8 +140,10 @@ class PygameGridRenderer:
                 pygame.display.quit()
                 os.environ.pop("SDL_VIDEODRIVER", None)
         pygame.init()
-        self._font = self._load_font(13)
-        self._hud_font = self._load_font(12)   # HUD 每-agent 行用稍小的字号
+        # HUD 字体放大并开启抗锯齿（render 时 antialias=True），让文字在 GIF
+        # 缩放 / 录屏后依旧锐利。标题略大于 agent 行，建立清晰的视觉层级。
+        self._font = self._load_font(16)        # 标题「主题 · step N」
+        self._hud_font = self._load_font(15)    # 每-agent 动作行
         self._inited = True
 
     def _blit_live(self, surf: pygame.Surface) -> None:
@@ -328,8 +330,10 @@ class PygameGridRenderer:
         # 此刻在跑的高层动作（供 debug 一眼看出谁卡在哪）。HUD 高度随 agent 数量
         # 动态算，保证网格不被压盖。
         n_agents = len(getattr(backend, "agents", []) or [])
-        line_h = 18
-        margin_top = 26 + (n_agents * line_h + 6 if n_agents else 0)
+        # 行高随放大后的字号同步加大（22px），标题带 32px，底部再留 8px 呼吸空间，
+        # 避免文字相互贴边、保证每行有足够留白看着清爽。
+        line_h = 22
+        margin_top = 32 + (n_agents * line_h + 8 if n_agents else 0)
         surf = pygame.Surface((w * t, h * t + margin_top))
         surf.fill(self.theme.background)
 
@@ -405,32 +409,52 @@ class PygameGridRenderer:
             return f"{head}({inner})" if inner else f"{head}()"
         return raw
 
+    @staticmethod
+    def _blit_text(surf, font, text, pos, color, *, outline=(0, 0, 0)) -> None:
+        """画带细描边的抗锯齿文字——小字清晰度的关键手段。
+
+        浅色文字直接压在半透明底上时，细笔画会和背景混、显得发虚。这里先用
+        暗色把同一行文字在 4 个对角方向各偏 1px 描一圈，再画正色，相当于给每个
+        字形勾了一道 1px 黑边，无论底色深浅文字都「立」得起来、边缘锐利。
+        全部用 ``antialias=True`` 渲染，缩放后不发毛刺。
+        """
+        x, y = pos
+        edge = font.render(text, True, outline)
+        for ox, oy in ((-1, -1), (1, -1), (-1, 1), (1, 1)):
+            surf.blit(edge, (x + ox, y + oy))
+        surf.blit(font.render(text, True, color), (x, y))
+
     def _draw_hud(self, surf, backend, margin_top) -> None:
         """画顶部状态带：第一行「主题 · step」，其下每个 agent 一行当前动作。"""
         if self._font is None:
             return
         agents = getattr(backend, "agents", []) or []
 
-        # 半透明深色底，让 HUD 文字在任何主题底色上都清晰可读。
+        # 加深的半透明底（alpha 200）+ 底部一道细分隔线，让 HUD 文字在任何主题
+        # 底色上都有稳定的高对比背景，文字不再被花哨的地板色干扰。
         bg = pygame.Surface((surf.get_width(), margin_top), pygame.SRCALPHA)
-        bg.fill((0, 0, 0, 150))
+        bg.fill((12, 14, 18, 200))
         surf.blit(bg, (0, 0))
+        pygame.draw.line(surf, (90, 96, 108),
+                         (0, margin_top - 1), (surf.get_width(), margin_top - 1), 1)
 
-        # 第一行：主题 · step
+        # 第一行：主题 · step（带描边的亮白，作为 HUD 的视觉锚点）
         title = f"{self.theme.name}  ·  step {self._step}"
-        surf.blit(self._font.render(title, True, self.theme.label), (8, 5))
+        self._blit_text(surf, self._font, title, (10, 7), (245, 247, 250))
 
         # 其下：每个 agent 一行——色块 + agent-i + 高层动作 + minigrid 原语
         hud_font = self._hud_font or self._font
-        line_h = 18
+        line_h = 22
         for i, agent in enumerate(agents):
-            y = 26 + i * line_h
+            y = 32 + i * line_h
             aid = int(getattr(agent, "id", i))
             style = getattr(agent, "render_style", None) or {}
             color = style.get("color") or self.theme.agent_color(aid)
 
-            # 与画面里 agent 同色的小方块，HUD↔画面一眼对应。
-            pygame.draw.rect(surf, color, (8, y + 3, 10, 10), border_radius=2)
+            # 与画面里 agent 同色的色块（放大到 13px + 白描边），HUD↔画面一眼对应。
+            sw = pygame.Rect(10, y + 3, 13, 13)
+            pygame.draw.rect(surf, color, sw, border_radius=3)
+            pygame.draw.rect(surf, (255, 255, 255), sw, width=1, border_radius=3)
 
             act = self._running_action(agent)
             prim = getattr(getattr(agent, "action", None), "name", None) or "—"
@@ -441,10 +465,10 @@ class PygameGridRenderer:
                 done = bool(getattr(agent, "bt_success", False))
                 tail = "✓ 完成" if done else "待命/等待"
                 text = f"agent-{aid}  {tail}   [{prim}]"
-            # 完成的 agent 用柔和色，进行中的用主题前景色，便于扫读。
-            txt_col = ((140, 200, 150) if (not act and
-                       getattr(agent, "bt_success", False)) else self.theme.label)
-            surf.blit(hud_font.render(text, True, txt_col), (24, y))
+            # 完成=柔和绿、进行中=亮白，均带描边，扫读清晰。
+            txt_col = ((150, 220, 160) if (not act and
+                       getattr(agent, "bt_success", False)) else (236, 239, 244))
+            self._blit_text(surf, hud_font, text, (30, y), txt_col)
 
     def _draw_room_labels(self, surf, backend, off) -> None:
         """把每个房间的中文别名画在该房间的几何中心。"""

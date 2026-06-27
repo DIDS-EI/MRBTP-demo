@@ -30,6 +30,9 @@ _t_exec_*.py
 # --- private docs (never committed) ---
 docs/cys/
 
+# --- ablation study (not committed for now) ---
+examples/ablation_study/
+
 # --- editor / OS ---
 .vscode/
 .idea/

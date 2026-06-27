@@ -90,6 +90,7 @@ def execute(
     share_belief: bool = True,
     max_steps: int = 500,
     on_step: Optional[StepCallback] = None,
+    should_stop: Optional[Callable[[StepRecord, "object"], bool]] = None,
     print_ticks: bool = False,
 ) -> ExecutionResult:
     """Run the planned behavior trees until the goal is met or steps run out.
@@ -102,6 +103,10 @@ def execute(
         on_step: optional callback invoked with each :class:`StepRecord`
             (and the env) right after the step is applied — the visualizer
             uses this to render and print.
+        should_stop: optional predicate ``(record, env) -> bool`` checked
+            after each step; returning ``True`` aborts the run early (still
+            reported as ``success=False``). Useful to bail out of a detected
+            deadlock instead of spinning all the way to ``max_steps``.
         print_ticks: if ``True``, print a compact tick summary each step.
 
     Returns:
@@ -121,6 +126,7 @@ def execute(
 
     history: List[StepRecord] = []
     done = False
+    aborted = False
     step = 0
 
     while not done and step < max_steps:
@@ -137,7 +143,14 @@ def execute(
 
         step += 1
 
-    if done:
+        if not done and should_stop is not None and should_stop(record, env):
+            aborted = True
+            break
+
+    if aborted:
+        print_colored(f"\nAborted early at step {step} (deadlock detected, "
+                      f"share_belief={share_belief}).", "red")
+    elif done:
         print_colored(f"\nTask finished in {step} steps "
                       f"(share_belief={share_belief}).", "green")
     else:
