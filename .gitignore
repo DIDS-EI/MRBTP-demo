@@ -17,6 +17,31 @@ mrbtp_demo/output/
 output/
 *.svg.tmp
 
+# --- simulation artifacts (videos / trajectories / trace logs / results) ---
+*.mp4
+*.npz
+*.jsonl
+*.json
+
+# --- generated paper-reproduction results (regenerate with exp_*.py) ---
+examples/paper_reproduction/results/
+
+# --- local MuJoCo / robotics work (kept locally, not part of the clean demo) ---
+backends/mujoco/
+backends/mujoco_hetero/
+core/envs/mujoco/
+core/envs/mujoco_hetero/
+examples/mujoco/
+examples/mujoco_hetero/
+scenes/mujoco/
+scenes/mujoco_hetero/
+outputs/
+experiments/
+third_party/
+
+# Local copy of the MuJoCo-flavoured README (never committed).
+README_MUJOCO.md
+
 # --- refactor backups (kept locally, never committed) ---
 .p0_backups/
 .p0_baseline/

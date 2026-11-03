@@ -27,19 +27,27 @@ warnings.filterwarnings("ignore", category=UserWarning, module="gymnasium.core")
 # Hide the pygame "Hello from the pygame community" banner.
 os.environ.setdefault("PYGAME_HIDE_SUPPORT_PROMPT", "True")
 
-import gymnasium  # noqa: E402  (must come after the env tweaks above)
 
 from core.behavior_tree.behavior_library import BehaviorLibrary  # noqa: E402
 from core.behavior_tree.behavior_tree import BehaviorTree  # noqa: E402
-from core.envs.gridenv.minigrid.minigrid_env import MiniGridToMAGridEnv  # noqa: E402
+# The optional grid backend is loaded only when requested. Importing the BT
+# planner for MuJoCo must not initialise pygame/OpenCV or two SDL libraries.
+def __getattr__(name):
+    if name == "MiniGridToMAGridEnv":
+        from core.envs.gridenv.minigrid.minigrid_env import MiniGridToMAGridEnv
+        globals()[name] = MiniGridToMAGridEnv
+        return MiniGridToMAGridEnv
+    raise AttributeError(f"module {__name__!r} has no attribute {name!r}")
 from core.utils import ROOT_PATH  # noqa: E402
 from core.utils.random import Random  # noqa: E402
 
 # Initialise the global RNG once at import time.
 Random.initialize()
 
-# Convenience alias so users can write ``core.make(env_id)``.
-make = gymnasium.make
+# Preserve core.make(...) without importing the optional grid/render stack.
+def make(*args, **kwargs):
+    import gymnasium
+    return gymnasium.make(*args, **kwargs)
 
 __all__ = [
     "BehaviorTree",

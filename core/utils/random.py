@@ -1,7 +1,6 @@
 
 import numpy as np
 from typing import Any, Optional, Tuple, TypeVar, Iterable
-from gymnasium import error
 
 RandomNumberGenerator = np.random.Generator
 T = TypeVar("T")

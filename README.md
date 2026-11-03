@@ -11,7 +11,11 @@
 本仓库是完整 `mrbtp` 科研代码库的**精简提取版**：只保留 MiniGrid 这条规划/执行链路，
 砍掉了 VirtualHome 三维仿真器、数值环境、LLM 客户端等未用到的部分。
 精简后的规划库就放在 `core/` 下——**它就是上游 `mrbtp` 包本身，只是改了名**。
-整个仓库约 750 KB，仅依赖几个轻量 pip 包即可跑起来。
+整个仓库只有几 MB，仅依赖几个轻量 pip 包即可跑起来。
+
+仓库内容分三块：`core/` 是规划算法与行为树运行时，`app/` 是栅格世界的执行器与 CLI，
+`examples/` 是渐进教程、动手练习和论文图表复现。全部示例都跑在共享的 2-D 栅格环境上。
+第一次接触建议先读 **`README_STUDY_GUIDE.md`**（半小时阅读路线图），再按下面的目录查细节。
 
 ---
 
@@ -24,6 +28,7 @@
 5. [安装与运行](#5-安装与运行)
 6. [边学边练：examples 与 projects 双轨](#6-边学边练examples-与-projects-双轨)
 7. [相对上游 `mrbtp` 砍掉了什么](#7-相对上游-mrbtp-砍掉了什么)
+8. [学习导读与论文复现](#8-学习导读与论文复现)
 
 ---
 
@@ -379,12 +384,55 @@ python examples/projects/proj1_two_rooms/solution/solve.py --headless  # 纯终�
 
 ---
 
+## 8. 学习导读与论文复现
+
+除上述教程与练习外，仓库还有两份独立材料，同样只使用栅格环境与 `core/` 规划链路。
+
+### `README_STUDY_GUIDE.md` —— 半小时阅读路线图
+
+按「先跑起来 → 读编排层 → 读回链算法内核 → 读行为树运行时」的顺序指路，
+点明三个关键词（回链、行为树、信念共享）、目录速查和最容易踩的坑。
+它是指路文档而非 API 手册，接口细节以本 README 与 `app/README.md` 为准。
+
+### `examples/paper_reproduction/` —— 论文图表复现
+
+用本仓库自己的 `app.planner.plan_behavior_trees` 与 `app.executor.execute`
+复现论文 *MRBTP: Multi-Robot Behavior Tree Planning*（arXiv:2502.18072）的 Fig.4 与 Table 1–3。
+这是**忠实结构、缩小规模**的近似复现：追求曲线形状与指标趋势一致，不追求绝对数值相同。
+论文里的 α（同质性）、FP（动作失败概率）、Comm（意图广播）在 demo 中分别用宏库重分配、
+动作失效注入和广播计数近似；LLM 预规划子树由预置宏库扮演。
+
+| 脚本 | 复现内容 | 主要输出（`results/`） |
+|---|---|---|
+| `exp_fig4.py` | Fig.4(a) SR vs FP×α；Fig.4(b) TS vs 意图共享×α | `fig4a_sr_vs_fp.{csv,md}`、`fig4b_ts_vs_share.{csv,md}` |
+| `exp_table1.py` | Table 1：BT-Expansion baseline vs MRBTP 的 SR/TS/RS | `table1_baseline_vs_mrbtp.{csv,md}` |
+| `exp_table2.py` | Table 2：子树预规划 + 意图共享的 TS/RS/Comm | `table2_subtree_is_comm.{csv,md}` |
+| `exp_table3.py` | Table 3：预规划子树的 EC/PT | `table3_ec_pt.{csv,md}` |
+
+```bash
+# 在仓库根目录，用项目自带 venv；默认每格 5 个 seed，全套约十几分钟
+.venv/bin/python examples/paper_reproduction/exp_table1.py
+.venv/bin/python examples/paper_reproduction/exp_table2.py
+.venv/bin/python examples/paper_reproduction/exp_table3.py
+.venv/bin/python examples/paper_reproduction/exp_fig4.py
+
+# 加大 seed 数（更慢）
+.venv/bin/python examples/paper_reproduction/exp_table1.py --seeds 10
+```
+
+结果 CSV、Markdown 与图落在 `examples/paper_reproduction/results/`（由脚本运行时生成，仓库不预置）；
+指标口径、实验设计与预期趋势见 `examples/paper_reproduction/README.md`。
+
+---
+
 ## 延伸阅读
 
 - **`app/README.md`** —— 四段式架构、`share_belief` 开关、完整 CLI 旗标表、如何扩展。
 - **`app/TUTORIAL.html`** —— 带内嵌 SVG 的滚动式图解教程（流水线 / 数据流 / 行为树结构 / 两类不确定性）。
 - **`docs/PLANNING_OPTIONS.html`** —— 4 个正交规划/执行旋钮的一页速查（代码位置、生效时机、组合矩阵、可直接粘贴的命令）。
 - **`scenes/README.md`** —— 场景契约与自动发现规则。
+- **`README_STUDY_GUIDE.md`** —— 半小时阅读路线图，从跑通示例一路指到回链算法内核与行为树运行时。
+- **`examples/paper_reproduction/README.md`** —— 论文 Fig.4 / Table 1–3 的近似复现设计、指标口径与预期趋势。
 
 ---
 
