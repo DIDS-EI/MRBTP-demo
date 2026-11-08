@@ -29,6 +29,13 @@ Run from the repository root with the project's virtualenv, e.g.::
     # which auto-retries:
     python -m app.run --smoke --renderer none
 
+    # Pure-symbolic VirtualHome (no window, no Unity, no MiniGrid):
+    python -m app.run --scenario virtualhome --renderer none --agents 2
+
+    # Or select the backend / domain explicitly on top of any scene:
+    python -m app.run --scenario virtualhome --backend virtualhome \
+        --domain virtualhome --renderer none
+
 The three stages are intentionally separate modules so you can read or
 reuse them independently:
 
@@ -45,8 +52,13 @@ import random
 from pathlib import Path
 
 from core.utils.tools import print_colored
-from core.interfaces import make_backend
+from core.interfaces import available_backends, make_backend
+from core.envs.domains import DOMAIN_REGISTRY, STANDALONE_DOMAINS
 from core.agents import make_goal_provider
+
+# Importing a backend module is what triggers its ``register_backend`` call.
+# MiniGrid is registered lazily by ``make_backend``; symbolic backends are not.
+import backends.virtualhome  # noqa: F401
 
 from app.scenario import SCENARIOS, SCENARIO_THEMES
 from app.planner import plan_behavior_trees
@@ -55,6 +67,19 @@ from app.visualize import Visualizer
 
 
 OUTPUT_DIR = Path(__file__).resolve().parent / "output"
+
+
+def _known_backends():
+    """Backend names shown in ``--help`` / accepted by ``--backend``."""
+    return sorted({"minigrid"} | set(available_backends()))
+
+
+def _known_domains():
+    """Domain names shown in ``--help`` / accepted by ``--domain``.
+
+    ``none`` explicitly falls back to the built-in MiniGrid behavior library.
+    """
+    return ["none"] + sorted(DOMAIN_REGISTRY)
 
 
 def build_arg_parser() -> argparse.ArgumentParser:
@@ -66,6 +91,21 @@ def build_arg_parser() -> argparse.ArgumentParser:
     p.add_argument(
         "--scenario", choices=sorted(SCENARIOS), default="warehouse",
         help="Which problem instance to run.",
+    )
+    p.add_argument(
+        "--backend", choices=_known_backends(), default=None,
+        help="Override the scenario's simulation backend.  Leaving it unset "
+             "keeps the scenario's own choice (MiniGrid scenes -> 'minigrid', "
+             "the VirtualHome scene -> 'virtualhome').  New backends become "
+             "selectable here once their module is imported and calls "
+             "core.interfaces.register_backend().",
+    )
+    p.add_argument(
+        "--domain", choices=_known_domains(), default=None,
+        help="Override the scenario's behavior-library domain.  Leaving it "
+             "unset keeps the scenario's own choice; 'none' falls back to the "
+             "built-in MiniGrid library.  'virtualhome' is a standalone "
+             "symbolic domain and must be paired with '--backend virtualhome'.",
     )
     p.add_argument(
         "--smoke", action="store_true",
@@ -172,7 +212,8 @@ def build_arg_parser() -> argparse.ArgumentParser:
 
 
 def main(argv=None) -> int:
-    args = build_arg_parser().parse_args(argv)
+    parser = build_arg_parser()
+    args = parser.parse_args(argv)
 
     # ---- --smoke preset ------------------------------------------------- #
     # A one-flag shortcut for the tiny, near-deterministic self-check.  We
@@ -206,8 +247,43 @@ def main(argv=None) -> int:
 
     # ---- Scenario ------------------------------------------------------- #
     scenario = SCENARIOS[args.scenario](num_agent=args.agents)
+    if args.backend is not None:
+        scenario.backend = args.backend
+    if args.domain is not None:
+        scenario.behavior_lib = None if args.domain == "none" else args.domain
+
+    symbolic_backend = scenario.backend != "minigrid"
+    if symbolic_backend and getattr(scenario, "symbolic_task", None) is None:
+        parser.error(
+            f"--backend {scenario.backend!r} 需要一个带符号任务的场景；"
+            "请配合 '--scenario virtualhome' 使用。"
+        )
+    domain = scenario.behavior_lib if isinstance(scenario.behavior_lib, str) else None
+    if domain in STANDALONE_DOMAINS and not symbolic_backend:
+        parser.error(
+            f"域 '{scenario.behavior_lib}' 是纯符号域，请加 "
+            "'--backend virtualhome'（不能配 MiniGrid 后端）。"
+        )
+    if symbolic_backend and domain not in STANDALONE_DOMAINS:
+        parser.error(
+            f"--backend {scenario.backend!r} 需要 standalone 符号域；"
+            f"当前 behavior_lib={scenario.behavior_lib!r}，"
+            "请加 '--domain virtualhome'。"
+        )
+
+    # A symbolic world has no grid / window to draw.  Force headless so the
+    # user does not have to remember '--renderer none' for the VH scene.
+    if symbolic_backend and args.renderer != "none":
+        print_colored(
+            f"后端 '{scenario.backend}' 是纯符号世界，没有画面；"
+            "已自动切换到 --renderer none。", "yellow",
+        )
+        args.renderer = "none"
+        use_minigrid_window = False
+
     print_colored(
         f"Scenario '{scenario.name}': {scenario.num_agent} agents, "
+        f"backend={scenario.backend}, domain={scenario.behavior_lib}, "
         f"goal = {set(scenario.goal)}",
         "blue",
     )

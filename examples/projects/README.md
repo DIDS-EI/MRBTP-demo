@@ -1,7 +1,9 @@
 # projects · 动手练习
 
-跑完 `../walkthrough/` 的 6 课后，来这里做 **3 个循序渐进的小项目**，把学到的东西
-真正用起来。每个项目都是「**骨架 + TODO 留白 + 参考答案**」的形式：
+跑完 `../walkthrough/` 的 6 课后，来这里做 **5 个循序渐进的小项目**，把学到的东西
+真正用起来。前 3 个在 2-D 网格上搬东西，后 2 个切到新接入的 **VirtualHome
+纯符号域**（`core/envs/domains/virtualhome` + `backends/virtualhome`）。
+每个项目都是「**骨架 + TODO 留白 + 参考答案**」的形式：
 
 ```
 projN_xxx/
@@ -14,9 +16,9 @@ projN_xxx/
 **怎么用**：先读项目的 README，再打开 `starter.py` 填掉所有 `TODO`，
 跑通后再看 `solution/solve.py` 对答案。每个项目的参考答案都已实测可跑。
 
-## 底座：直接复用仓库成品场景的两张独立地图
+## 底座（proj1~3）：直接复用仓库成品场景的两张独立地图
 
-三个项目**不再用旧的「四房间走廊」**，而是直接借用仓库自带的两个成品场景
+前三个项目**不再用旧的「四房间走廊」**，而是直接借用仓库自带的两个成品场景
 （`scenes/home_service.py` 与 `scenes/battlefield.py`）的独立地图、房间中文别名
 和家具 / 掩体元数据。这样练习窗口里看到的画面，和 `python -m app.run --scenario
 home --renderer pygame` 跑出来的成品画面**完全一致**——有中文房间名、冰箱 / 沙发、
@@ -47,13 +49,15 @@ room-0 中转（proj3 的核心知识点）。
 > 行优先顺序——这正是「规划内核只认 `room-i` 编号，人类靠中文别名读懂」解耦的
 > 活教材。别名（厨房 / 蓝方基地…）只供渲染与文档，规划器永远只看编号。
 
-## 三个项目
+## 五个项目
 
-| 顺序 | 项目 | 难度 | 地图 | 学什么 | 新 API / 知识点 |
+| 顺序 | 项目 | 难度 | 世界 | 学什么 | 新 API / 知识点 |
 |---|---|---|---|---|---|
-| 1 | `proj1_two_rooms` | ⭐ | home | 把球搬进相邻房间（花园→厨房，1 跳）| 写 `Scenario` + 一份搬运宏 |
-| 2 | `proj2_home` | ⭐⭐ | home | 把杯子摆到收纳篮旁（厨房→客厅，1 跳）| 新谓词 `IsNear` + 动作 `PutNearInRoom` |
-| 3 | `proj3_battle` | ⭐⭐⭐ | battle | 把弹药跨 2 道闸口送进中央据点 | 多跳移动：经开阔区中转，拆成相邻段的 `GoBtwRoom` |
+| 1 | `proj1_two_rooms` | ⭐ | home 网格 | 把球搬进相邻房间（花园→厨房，1 跳）| 写 `Scenario` + 一份搬运宏 |
+| 2 | `proj2_home` | ⭐⭐ | home 网格 | 把杯子摆到收纳篮旁（厨房→客厅，1 跳）| 新谓词 `IsNear` + 动作 `PutNearInRoom` |
+| 3 | `proj3_battle` | ⭐⭐⭐ | battle 网格 | 把弹药跨 2 道闸口送进中央据点 | 多跳移动：经开阔区中转，拆成相邻段的 `GoBtwRoom` |
+| 4 | `proj4_vh_appliances` | ⭐⭐ | **VirtualHome 符号** | 异构三人开冰箱 / 开电视 | `symbolic_task`、异构 `action_space`、`backend`/`behavior_lib` 选择 |
+| 5 | `proj5_vh_subtrees` | ⭐⭐⭐⭐ | **VirtualHome 符号** | 左右手双线搬运 + 一个独立目标 | 宏子树预规划绕开 `IsNear` 互斥、意图接单节点 |
 
 逐个运行（先填完 starter 的 TODO）：
 
@@ -64,11 +68,22 @@ source .venv/bin/activate
 python examples/projects/proj1_two_rooms/starter.py
 python examples/projects/proj2_home/starter.py
 python examples/projects/proj3_battle/starter.py
+python examples/projects/proj4_vh_appliances/starter.py
+python examples/projects/proj5_vh_subtrees/starter.py
 ```
 
 想直接看参考答案跑通的样子，把 `starter.py` 换成 `solution/solve.py` 即可。
 
+> proj4 / proj5 用的是 `Scenario.symbolic_task` 而不是 `balls` / `env_id`：
+> 任务直接写成 `{objects, action_space, init_state, goal}`，格式与论文复现的
+> `vh_*_25.json` 一致。详见各自 README。
+
 ## 可视化（看机器人在窗口里动起来）
+
+> **proj4 / proj5 例外**：VirtualHome 是纯符号世界，没有网格位姿，生成不了画面。
+> `_run.py` 会自动走纯终端 tick（`--gif` / 实时窗口忽略），加不加 `--headless`
+> 输出一样；而且符号执行是确定的，`attempts=1` 不需要重试。下面三种方式只对
+> proj1~3 有效。
 
 `starter.py` 和 `solution/solve.py` 都支持三种运行方式：
 
@@ -92,20 +107,33 @@ python examples/projects/proj1_two_rooms/solution/solve.py --headless  # 无头�
 - 注意：`starter.py` 里还有 `TODO` 占位，**要先填完才能跑通**可视化。
 
 > 这套可视化逻辑封装在 `examples/projects/_run.py` 里（规划 → 执行 → pygame 实时
-> 窗口 / GIF 录制 → 保持窗口）。三个练习都调它，所以脚本本身只剩「定义 Scenario」这一件事。
+> 窗口 / GIF 录制 → 保持窗口；符号项目自动退化为纯终端）。五个练习都调它，
+> 所以脚本本身只剩「定义 Scenario」这一件事。
 
 > **无显示器也想看动画 GIF？** 用正式入口把帧存成 GIF：
 > `python -m app.run --scenario home --renderer pygame`（GIF 落在 `output/pygame/`）。
 > 练习用的 home / battle 就是这两个成品场景的同款地图。
 
-## 通用规则（三个项目都适用，务必记住）
+## 通用规则（务必记住）
+
+前 3 个网格项目：
 
 1. **机器人数 ≥ 2。** 这个 demo 的任务分配机制在单机器人下不工作；没活干的机器人给空宏库 `{}` 占位。
 2. **`composite_library` 长度必须 == `num_agent`。** 一人一份。
 3. **相邻关系看地图，别想当然。** home 是「花园居中、四室外接」，battle 是「开阔区居中、三据点外接」——都不是一条链。每张图的实测相邻对见上文「底座」一节。
 4. **`GoBtwRoom` 只在相邻房间生效。** 跨多跳要拆成逐段相邻（见 proj3：经开阔区 room-0 中转）。
-5. **每个项目只设一个短目标。** 规划开销随「目标数 × 跳数 × 房间大小」增长，多个独立搬运目标会组合爆炸到几十秒——别贪多。
+5. **只设一个短目标。** 规划开销随「目标数 × 跳数 × 房间大小」增长，多个独立搬运目标会组合爆炸到几十秒——别贪多。
 6. **执行有随机性**（单次约 70% 成功）。每个 starter 都内置了自动重试，跑不通就再运行一次。
+
+后 2 个 VirtualHome 符号项目：
+
+7. **不用 `balls` / `room-i`。** 目标谓词写成 `IsOpen(...)` / `IsIn(...)` /
+   `IsSwitchedOn(...)`，物体名用域里的类别名（`fridge` / `milk` / `tv` …）。
+8. **`symbolic_task` 的 `action_space` 长度必须 == `num_agent`**，一人一份能力名单；
+   `composite_library` 同理（不写宏时留空列表 `[]` 或逐人 `{}`）。
+9. **`Walk` 会清掉旧的 `IsNear`。** `check_conflict` 又禁止一个前提集合里出现
+   两个 `IsNear`，所以多跳搬运链要写成宏（proj5），别指望主搜索自动串起来。
+10. **执行是确定的**，无需重试；也没有网格画面，`--gif` / 实时窗口自动忽略。
 
 ## 常用原子动作速查
 
@@ -116,6 +144,20 @@ python examples/projects/proj1_two_rooms/solution/solve.py --headless  # 无头�
 | `GoBtwRoom(self, 起房, 终房)` | 跨到**相邻**房间 |
 | `PutInRoom(self, 物体, 房间)` | 把手里的物体放进某房间（随便落地）|
 | `PutNearInRoom(self, 物体, 锚点, 房间)` | 放到某锚点物体旁（proj2 用）|
+
+### VirtualHome 符号动作速查（proj4 / proj5）
+
+| 动作 | 含义 | 关键 pre |
+|---|---|---|
+| `Walk(self,obj)` | 走到物体旁 | —（会删掉其它 `IsNear(self,*)`）|
+| `Open(self,obj)` / `Close(self,obj)` | 开 / 关可开合物体 | `IsNear(self,obj)`、`IsLeftHandEmpty(self)` |
+| `RightGrab` / `LeftGrab(self,obj)` | 右 / 左手拿起 | 对应手空闲 + `IsNear(self,obj)` |
+| `RightPut` / `LeftPut(self,obj,surface)` | 放到台面上 | 对应手持物 + `IsNear(self,surface)` |
+| `RightPutIn` / `LeftPutIn(self,obj,container)` | 放进容器 | 持物 + `IsNear` + 容器 `IsOpen` |
+| `SwitchOn` / `SwitchOff(self,obj)` | 打开 / 关闭电器 | `IsNear(self,obj)` + 相反开关状态 |
+
+完整类别与 STRIPS 前后件见 `../../core/envs/domains/virtualhome/model.py`；
+两个符号项目的任务说明与 TODO 清单见各自 README。
 
 > 想看这些 API 的完整列表和真实大场景用法，看 `../../app/TUTORIAL.html`
 > 和 `../../app/scenario.py`（仓库自带的 warehouse / smoke / home / battle 场景）。

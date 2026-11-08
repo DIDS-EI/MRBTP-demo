@@ -172,7 +172,16 @@ def _step_all_agents(env) -> bool:
     This mirrors ``MiniGridMAGridEnv.step`` but is spelled out here so the
     demo's main loop is transparent (and so we never accidentally trigger the
     env's own pygame rendering — the visualizer owns rendering).
+
+    Backends that own their own stepping (e.g. the pure-symbolic VirtualHome
+    backend, which has no poses to focus / update) may expose ``tick_step()``;
+    it takes over the whole step and keeps the MiniGrid-specific
+    ``set_focus_agent / agent_step / get_focus_agent`` triple out of the
+    backend contract.  The built-in MiniGrid path is unchanged.
     """
+    if hasattr(env, "tick_step"):
+        return bool(env.tick_step())
+
     env.step_count += 1
     done = True
 

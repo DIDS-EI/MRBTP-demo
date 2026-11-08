@@ -61,6 +61,18 @@ class PlanningAgent:
         self.verbose = verbose
         self.env = env
 
+        # Optional passive observer for the duplicate-expansion diagnosis.
+        # None keeps the original control flow and constructs no event objects.
+        # The core package never imports the repro package; callers inject a
+        # duck-typed observer with the on_* methods before planning.
+        self._expansion_observer = None
+
+        # Optional exact regression memo, injected by the caller. Its lifetime
+        # is one planning call and it is shared by all agents; None disables it.
+        # Only the immutable frozenset result is cached, never nodes, pruning
+        # decisions, expansion lists or trees.
+        self._regression_cache = None
+
         # Filled in during behavior-tree generation.
         self.anytree_root: Optional[AnyTreeNode] = None
         self.btml: Optional[BTML] = None
@@ -73,22 +85,57 @@ class PlanningAgent:
         """Expand a single condition and attach the new premises to the graph."""
         # Decide tree-internal vs tree-external expansion *before* expanding.
         inside_condition = self.expanded_condition_dict.get(condition, None)
+        obs = self._expansion_observer
 
         premise_condition_list: List[PlanningCondition] = []
         for action in self.action_list:
+            if obs is not None:
+                obs.on_scan(condition, action, self.id)
             if not self.is_consequence(condition, action):
+                if obs is not None:
+                    obs.on_irrelevant(condition, action, self.id)
                 continue
-            premise_condition = frozenset((action.pre | condition) - action.add)
+            if obs is not None:
+                obs.on_regress_request(condition, action, self.id)
+
+            cache = self._regression_cache
+            if cache is None:
+                # STRIPS regression: pre | (condition - add). The original
+                # (pre | condition) - add dropped pre ∩ add, under-generating
+                # the premise when a literal is both required and produced.
+                premise_condition = frozenset(action.pre | (condition - action.add))
+                cache_state = "off"
+            else:
+                key = (frozenset(condition), frozenset(action.pre),
+                       frozenset(action.add), frozenset(action.del_set))
+                cached = cache.get(key, None)
+                if cached is not None:
+                    premise_condition = cached
+                    cache_state = "hit"
+                else:
+                    premise_condition = frozenset(action.pre | (condition - action.add))
+                    cache[key] = premise_condition
+                    cache_state = "miss"
+            if obs is not None:
+                obs.on_regress_compute(condition, action, premise_condition,
+                                       self.id, cache_state)
             if not self.has_no_subset(premise_condition):
+                if obs is not None:
+                    obs.on_subset_pruned(condition, action, premise_condition, self.id)
                 continue
 
             # Skip premises that violate environment-level conflicts.
             if self.env is not None and self.env.check_conflict(premise_condition):
+                if obs is not None:
+                    obs.on_conflict_pruned(condition, action, premise_condition,
+                                           self.id)
                 continue
 
             planning_condition = PlanningCondition(premise_condition, action.name)
             premise_condition_list.append(planning_condition)
             self.expanded_condition_dict[premise_condition] = planning_condition
+            if obs is not None:
+                obs.on_accepted(condition, action, premise_condition, self.id)
 
             if self.verbose:
                 print_colored("inside" if inside_condition else "outside", "purple")

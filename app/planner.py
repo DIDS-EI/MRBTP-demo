@@ -53,6 +53,8 @@ def plan_behavior_trees(
     single_expand: bool = False,
     save_dir: Optional[str] = None,
     verbose: bool = False,
+    queue_dedup: Optional[bool] = None,
+    structure_sharing: Optional[bool] = None,
 ) -> PlanResult:
     """Plan a behavior tree for every agent.
 
@@ -76,6 +78,12 @@ def plan_behavior_trees(
         save_dir: if given, write ``robot-i.bt`` and ``robot-i.svg`` (plus
             macro diagrams) into this directory for inspection.
         verbose: forwarded to the underlying planner.
+        queue_dedup: optional override of the planner's queue deduplication.
+            ``None`` (default) uses the planner default (``True``). Set to
+            ``False`` only for A/B comparison against the legacy queue logic.
+        structure_sharing: optional override of R1 capability-group sharing.
+            ``None`` (default) uses the planner default (``True``). Set to
+            ``False`` to reproduce per-robot independent expansion.
 
     Returns:
         A populated :class:`PlanResult`.
@@ -117,8 +125,13 @@ def plan_behavior_trees(
     print_colored("Start Multi-Robot Behavior Tree Planning...", "green")
     t0 = time.time()
 
+    planner_kwargs = dict(verbose=verbose, start=start_state, env=env)
+    if queue_dedup is not None:
+        planner_kwargs["queue_dedup"] = queue_dedup
+    if structure_sharing is not None:
+        planner_kwargs["structure_sharing"] = structure_sharing
     if optimal:
-        planner = MAOBTP(verbose=verbose, start=start_state, env=env)
+        planner = MAOBTP(**planner_kwargs)
         planner.bfs_planning(
             target_goal, action_lists=action_lists, single_expand=single_expand
         )
@@ -129,7 +142,7 @@ def plan_behavior_trees(
                 "ignoring it for the MABTP baseline.",
                 "yellow",
             )
-        planner = MABTP(verbose=verbose, start=start_state, env=env)
+        planner = MABTP(**planner_kwargs)
         planner.planning(target_goal, action_lists=action_lists)
 
     planning_time = time.time() - t0

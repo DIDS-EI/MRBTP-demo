@@ -63,7 +63,9 @@ def log(msg: str) -> None:
     print(msg, file=sys.stderr, flush=True)
 
 
-def run_once(share_belief: bool, num_agent: int, max_steps: int, seed: int) -> bool:
+def run_once(share_belief: bool, num_agent: int, max_steps: int, seed: int,
+             queue_dedup: bool = True,
+             structure_sharing: bool = True) -> bool:
     """Run one full plan+execute cycle headless and report the outcome."""
     mode = "share" if share_belief else "no-share"
     log(f"=== [{mode}] build env + plan (seed={seed}) ===")
@@ -81,6 +83,8 @@ def run_once(share_belief: bool, num_agent: int, max_steps: int, seed: int) -> b
         plan = plan_behavior_trees(
             env, scenario, optimal=True,
             use_composite_actions=True, verbose=False,
+            queue_dedup=queue_dedup,
+            structure_sharing=structure_sharing,
         )
         log(f"[plan] trees={len(plan.bt_list)} "
             f"time={plan.planning_time:.2f}s expanded={plan.expanded_num}")
@@ -103,7 +107,8 @@ def run_once(share_belief: bool, num_agent: int, max_steps: int, seed: int) -> b
 
 def run_with_retry(
     share_belief: bool, num_agent: int, max_steps: int,
-    base_seed: int, attempts: int,
+    base_seed: int, attempts: int, queue_dedup: bool = True,
+    structure_sharing: bool = True,
 ) -> bool:
     """Run :func:`run_once` up to ``attempts`` times; succeed on the first win.
 
@@ -115,7 +120,8 @@ def run_with_retry(
     for i in range(attempts):
         seed = base_seed + i
         log(f"--- [{mode}] attempt {i + 1}/{attempts} (seed={seed}) ---")
-        if run_once(share_belief, num_agent, max_steps, seed):
+        if run_once(share_belief, num_agent, max_steps, seed, queue_dedup,
+                    structure_sharing):
             log(f"[{mode}] PASSED on attempt {i + 1}/{attempts}")
             return True
     log(f"[{mode}] FAILED all {attempts} attempts")
@@ -138,13 +144,24 @@ def main(argv=None) -> int:
                              "failure (a single attempt only passes ~70%% of "
                              "the time because the agents can deadlock at the "
                              "door, so we retry)")
+    parser.add_argument("--no-dedup", action="store_true",
+                        help="disable queue deduplication (legacy behaviour) "
+                             "for A/B comparison against the new default")
+    parser.add_argument("--no-structure-sharing", action="store_true",
+                        help="disable R1 capability-group sharing for A/B "
+                             "comparison against independent expansion")
     args = parser.parse_args(argv)
+    queue_dedup = not args.no_dedup
+    structure_sharing = not args.no_structure_sharing
+    log(f"queue_dedup={queue_dedup} structure_sharing={structure_sharing}")
 
     if args.both:
         ok_share = run_with_retry(True, args.agents, args.max_steps,
-                                  args.seed, args.attempts)
+                                  args.seed, args.attempts, queue_dedup,
+                                  structure_sharing)
         ok_iso = run_with_retry(False, args.agents, args.max_steps,
-                                args.seed, args.attempts)
+                                args.seed, args.attempts, queue_dedup,
+                                structure_sharing)
         log(f"\nSUMMARY shared_success={ok_share} isolated_success={ok_iso}")
         # The shared path is the one that must succeed; the ablation is
         # informational, so the exit code only reflects the shared run.
@@ -152,7 +169,8 @@ def main(argv=None) -> int:
 
     share = not args.no_share
     ok = run_with_retry(share, args.agents, args.max_steps,
-                        args.seed, args.attempts)
+                        args.seed, args.attempts, queue_dedup,
+                        structure_sharing)
     return 0 if (ok or not share) else 1
 
 

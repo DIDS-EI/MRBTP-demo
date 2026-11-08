@@ -23,8 +23,13 @@ output/
 *.jsonl
 *.json
 
-# --- generated paper-reproduction results (regenerate with exp_*.py) ---
-examples/paper_reproduction/results/
+# --- local-only example bundles (ignored wholesale for now) ---
+examples/paper_reproduction/
+examples/multi_robot_intent/
+examples/joint_actions_reference/
+
+# --- research reports (local-only) ---
+research-reports/
 
 # --- local MuJoCo / robotics work (kept locally, not part of the clean demo) ---
 backends/mujoco/
@@ -58,7 +63,8 @@ docs/cys/
 # --- ablation study (not committed for now) ---
 examples/ablation_study/
 
-# --- editor / OS ---
+# --- editor / OS / local agent state ---
+.workbuddy/
 .vscode/
 .idea/
 .DS_Store

@@ -1,4 +1,8 @@
-"""examples/projects/_run.py —— 三个练习共用的「跑 + 实时可视化」运行器。
+"""examples/projects/_run.py —— 各练习共用的「跑 + 可视化」运行器。
+
+MiniGrid 场景（proj1~3）走实时 pygame 窗口 / GIF；VirtualHome 纯符号场景
+（proj4~5，``Scenario.backend != "minigrid"``）经 ``make_backend`` 构造世界，
+只打印行为树 tick——符号世界没有网格位姿，本来就没有画面可画。
 
 把 starter / solution 里高度重复的样板收拢到一处：规划 → 执行 → 用 **pygame
 增强渲染器**（带中文房间名 / 家具 / 掩体 / agent 形状）实时画到一个窗口，行为树
@@ -97,7 +101,14 @@ def run_scenario(
     # 决定走哪种可视化。GIF 优先；否则 headless / 真开不出窗口 → 纯终端；
     # 剩下才开真实窗口。GIF 与窗口都走 pygame 增强渲染器，画面完全一致。
     can_show, why = _displayable_reason()
-    want_window = (not record_gif) and (not headless) and can_show
+
+    # VirtualHome 等纯符号后端没有网格 / 位姿，pygame 增强渲染器无从下笔：
+    # 一律走纯终端 tick，--gif / 实时窗口对它们不适用。MiniGrid 分支不变。
+    symbolic = getattr(build_scenario(), "backend", "minigrid") != "minigrid"
+    if symbolic and record_gif:
+        print("⚠️ 纯符号世界没有网格画面，--gif 已忽略。")
+        record_gif = False
+    want_window = (not record_gif) and (not headless) and can_show and not symbolic
 
     if headless and not record_gif:
         # 用户显式要无头：这时才设 dummy。
@@ -124,7 +135,9 @@ def run_scenario(
     scenario = build_scenario()
     print(f"目标 goal = {set(scenario.goal)}")
     print(f"团队规模 = {scenario.num_agent} 个机器人")
-    if record_gif:
+    if symbolic:
+        print("可视化：纯终端（VirtualHome 是纯符号世界，没有网格画面）")
+    elif record_gif:
         print("可视化：录制 GIF（无需显示器）")
     elif want_window:
         print("可视化：实时 pygame 窗口")
@@ -166,7 +179,13 @@ def run_scenario(
             seed = 40 + i
             print(f"--- 尝试 {i + 1}/{attempts} (seed={seed}) ---")
             scenario = build_scenario()
-            env = scenario.build_env(render=False)   # env 始终 headless，画面交给渲染器
+            if symbolic:
+                # 符号世界经后端注册表构造，完全绕开 gym.make / MiniGrid。
+                import backends.virtualhome            # noqa: F401  触发注册
+                from core.interfaces import make_backend
+                env = make_backend(scenario.backend, scene=scenario)
+            else:
+                env = scenario.build_env(render=False)  # headless，画面交给渲染器
             plan = plan_behavior_trees(
                 env, scenario, optimal=True, use_composite_actions=True,
             )

@@ -55,6 +55,15 @@ core/envs/
 | Pure-symbolic benchmark (no rendering)       | `NumericalEnv`                                             | `core.envs.numerical_env.numerical_env`                              |
 | Household / VirtualHome benchmark (exp2)     | `VHCompEnv`                                                | `core.envs.virtualhome.envs.vh_computation_env`                      |
 
+> **Trimmed-demo update**: `VHCompEnv` and the Unity simulator client above are
+> *upstream* layout only — those directories do not exist in this repository.
+> VirtualHome is now available to the main app as a **pure-symbolic** registered
+> domain: `core/envs/domains/virtualhome/` (STRIPS model + behaviour library)
+> plus `backends/virtualhome/` (a `SimBackend` implementation).  Run
+> `python -m app.run --scenario virtualhome --renderer none` or
+> `python -m backends.virtualhome.check`.  The paper-reproduction experiments
+> remain under `examples/paper_reproduction/repro/`.
+
 > The **`*_computation_env`** suffix means *symbolic / state-graph
 > evaluator only* — actions update an internal state set instead of
 > rendering pixels. The corresponding non-`computation` module is the

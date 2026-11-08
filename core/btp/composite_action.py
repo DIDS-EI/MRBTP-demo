@@ -46,7 +46,7 @@ class CABTP(PlanningAgent):
             return None
 
         premise_condition = frozenset(
-            (next_action.pre | condition) - next_action.add
+            next_action.pre | (condition - next_action.add)
         )
         if not self.has_no_subset(premise_condition):
             return None

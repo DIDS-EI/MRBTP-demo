@@ -20,6 +20,12 @@ class SimBackend(Protocol):
 
     现有 MiniGrid env 已经隐式满足其中大部分；P0 的工作是把它显式对齐到
     这个协议（见 backends/minigrid/）。新后端（Pygame…）照此实现即可。
+
+    可选执行钩子：后端若提供 ``tick_step() -> bool``，``app.executor`` 会用它
+    接管整拍推进（返回是否所有行为树 SUCCESS），不再走 MiniGrid 专用的
+    ``set_focus_agent / agent_step / get_focus_agent`` 三件套。这是给没有位姿
+    的后端（如 ``backends/virtualhome``）留的缝；它不属于协议的必需成员，
+    以免破坏已有后端对 ``isinstance(x, SimBackend)`` 的自检。
     """
 
     # --- A 组：世界与智能体 ---

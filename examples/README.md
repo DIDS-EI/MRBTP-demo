@@ -5,7 +5,8 @@
 | 子目录 | 内容 | 适合 |
 |---|---|---|
 | [`walkthrough/`](walkthrough/) | **6 个循序渐进的单文件教程**（01~06）| 先跑这个，从"看懂世界"到"把行为树看出来" |
-| [`projects/`](projects/) | **3 个动手小项目**（骨架 + TODO + 参考答案）| 学完 walkthrough 后练手，真正用起来 |
+| [`projects/`](projects/) | **5 个动手小项目**（3 个网格 + 2 个 VirtualHome 符号；骨架 + TODO + 参考答案）| 学完 walkthrough 后练手，真正用起来 |
+| [`paper_reproduction/`](paper_reproduction/) | **复现论文 MRBTP 的图表**；其中 `repro/` 忠实复现 Table 1 / Figure 4 / Table 2 / Table 3 / Table 4 | 想知道算法在论文实验设置下的表现 |
 
 > 所有命令都在**仓库根目录**、用项目自带的虚拟环境运行：
 > ```bash
@@ -28,21 +29,28 @@ python examples/walkthrough/06_inspect_tree.py     # 把行为树打印 / 导出
 
 详见 [`walkthrough/README.md`](walkthrough/README.md)。
 
-## 2. projects/ —— 再做这 3 个练习
+## 2. projects/ —— 再做这 5 个练习
 
 每个项目都是「骨架 `starter.py` + TODO 留白 + 参考答案 `solution/solve.py`」：
 
 ```bash
-python examples/projects/proj1_two_rooms/starter.py   # ⭐ 跨房间搬运
-python examples/projects/proj2_home/starter.py        # ⭐⭐ 摆到锚点旁（IsNear）
-python examples/projects/proj3_battle/starter.py      # ⭐⭐⭐ 跨多门多跳搬运
+python examples/projects/proj1_two_rooms/starter.py        # ⭐ 跨房间搬运（网格）
+python examples/projects/proj2_home/starter.py             # ⭐⭐ 摆到锚点旁（网格）
+python examples/projects/proj3_battle/starter.py           # ⭐⭐⭐ 跨多门多跳搬运（网格）
+python examples/projects/proj4_vh_appliances/starter.py    # ⭐⭐ 异构三人开家电（VirtualHome 符号）
+python examples/projects/proj5_vh_subtrees/starter.py      # ⭐⭐⭐⭐ 双线搬运 + 宏子树（VirtualHome 符号）
 ```
+
+> 后两个用新接入的 VirtualHome 纯符号域：没有网格画面、执行确定、无需重试，
+> 任务写在 `Scenario.symbolic_task` 里而不是 `balls` / `room-i`。
 
 详见 [`projects/README.md`](projects/README.md)。
 
-## 三个必须知道的「坑」
+## 三个必须知道的「坑」（针对网格项目）
 
-这些是新同学最容易踩、且报错信息不直观的点，提前记住能省很多时间：
+这些是新同学最容易踩、且报错信息不直观的点，提前记住能省很多时间。
+VirtualHome 符号项目（proj4 / proj5）没有网格、没有渲染、执行也是确定的，
+下面第 1、3 条对它们不适用：
 
 1. **最少 2 个机器人。**
    这个 demo 的任务分配机制（基于"认领任务 + 共享信念队列"）在 `num_agent=1`

@@ -60,7 +60,13 @@ def _domain_behavior_lib(domain: str) -> str:
 DOMAIN_REGISTRY: Dict[str, str] = {
     "home_service": "home_service",
     "battlefield": "battlefield",
+    "virtualhome": "virtualhome",
 }
+
+#: 自包含的**非网格**域：它们不复用 MiniGrid 原语，因此解析成单一行为库路径
+#: 而不是 ``[minigrid_root, domain_root]`` 的 overlay。当前只有 VirtualHome
+#: 纯符号域（配套 ``backends/virtualhome``，不能配 ``--backend minigrid``）。
+STANDALONE_DOMAINS = frozenset({"virtualhome"})
 
 
 def minigrid_behavior_lib_path() -> str:
@@ -85,13 +91,16 @@ def resolve_behavior_lib_path(behavior_lib: Optional[str]) -> BehaviorLibPath:
             * a registered domain name (key of :data:`DOMAIN_REGISTRY`).
             * an absolute filesystem path -> used verbatim.
 
-    Returns:
-        Either a single absolute path (the MiniGrid default / an absolute
-        override) or an **overlay list** ``[minigrid_root, domain_root]`` for a
-        registered domain.  The overlay lets a domain reuse every shared grid
-        primitive and only ship the handful of nodes it adds or overrides — the
-        :class:`~core.behavior_tree.behavior_library.BehaviorLibrary` loader
-        merges the list in order.
+        Returns:
+            Either a single absolute path (the MiniGrid default / an absolute
+            override / a standalone domain) or an **overlay list**
+            ``[minigrid_root, domain_root]`` for a grid domain.  The overlay lets
+            a domain reuse every shared grid primitive and only ship the handful
+            of nodes it adds or overrides — the
+            :class:`~core.behavior_tree.behavior_library.BehaviorLibrary` loader
+            merges the list in order.  Domains listed in
+            :data:`STANDALONE_DOMAINS` ship a complete library of their own.
+
 
     Raises:
         ValueError: if a non-path string is given that is not a registered
@@ -105,7 +114,11 @@ def resolve_behavior_lib_path(behavior_lib: Optional[str]) -> BehaviorLibPath:
     if os.path.isabs(behavior_lib):
         return behavior_lib
 
-    # Registered domain name -> overlay on top of the shared grid primitives.
+    # Standalone domain -> its own complete library (no grid primitives).
+    if behavior_lib in STANDALONE_DOMAINS:
+        return _domain_behavior_lib(DOMAIN_REGISTRY[behavior_lib])
+
+    # Registered grid domain -> overlay on top of the shared grid primitives.
     if behavior_lib in DOMAIN_REGISTRY:
         return [
             minigrid_behavior_lib_path(),

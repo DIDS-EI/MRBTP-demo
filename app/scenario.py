@@ -69,6 +69,12 @@ class Scenario:
     # See docs/PLUGGABLE_BACKEND_DESIGN.html for the full接入规范.
     backend: str = "minigrid"
 
+    # Pure-symbolic backends (``backends/virtualhome``) need a task spec rather
+    # than a MiniGrid layout.  Same shape as the paper-reproduction VH task
+    # JSONs: {"objects", "action_space", "init_state", "goal"}.  Grid scenes
+    # leave this ``None``; the backend raises a clear error if it is missing.
+    symbolic_task: dict | None = None
+
     # If ``True``, every locked door is unlocked right after the world is
     # built.  This models the "assume every agent can open any door" setup:
     # rooms are still partitioned by *door objects* (so the room-index DFS in
